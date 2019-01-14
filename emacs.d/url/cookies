@@ -1,0 +1,14 @@
+;; Emacs-W3 HTTP cookies file
+;; Automatically generated file!!! DO NOT EDIT!!!
+
+(setq url-cookie-storage
+ '((".altima.jp"
+  [url-cookie "visid_incap_71411" "SWMO6aP9SEOuqCgtZsnwj2VlIlkAAAAAQUIPAAAAAABP1xqlkquqOjmyqzrwn9Cy" "Mon, 21 May 2018 10:01:26 GMT" "/" ".altima.jp" nil]))
+)
+(setq url-cookie-secure-storage
+ 'nil)
+
+;; Local Variables:
+;; version-control: never
+;; no-byte-compile: t
+;; End:

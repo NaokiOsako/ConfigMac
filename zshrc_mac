@@ -1,0 +1,157 @@
+export ZSH=/home/n-osako/.oh-my-zsh
+ZSH_THEME="gnzh"
+plugins=(git ruby bundler rails )
+
+autoload -Uz colors
+colors
+
+#プロンプト
+
+autoload -Uz vcs_info
+setopt prompt_subst
+zstyle ':vcs_info:git:*' check-for-changes true
+zstyle ':vcs_info:git:*' stagedstr "%F{yellow}!"
+zstyle ':vcs_info:git:*' unstagedstr "%F{red}+"
+zstyle ':vcs_info:*' formats "%F{green}%c%u[%b]%f"
+zstyle ':vcs_info:*' actionformats '[%b|%a]'
+precmd () { vcs_info }
+# PROMPT="\$vcs_info_msg_0_'%(?.%{$fg[white]%}(_๑òωó)_ﾊﾞｧﾝ.%{$fg[white]%}ﾀﾞｧﾒ(乂д･｀))%{$fg[white]%}: %{$fg[blue]%}%~ %(?.%{${fg[green]}%}-> .%{${fg[red]}%}-> )%{${reset_color}%}"
+PROMPT="\$vcs_info_msg_0_'%{$fg[blue]%}%~ %(?.%{${fg[green]}%}->.%{${fg[red]}%}->)%{${reset_color}%"
+
+
+#RPROMPT=$RPROMPT'${vcs_info_msg_0_}'
+#PROMPT=\$vcs_info_msg_0_'%# '
+#alias
+# alias ls='ls --color=auto'
+alias ls="ls -G"
+alias dir='dir --color=auto'
+alias vdir='vdir --color=auto'
+alias grep='grep --color=auto'
+alias fgrep='fgrep --color=auto'
+alias egrep='egrep --color=auto'
+alias netres='sudo service network-manager restart'
+alias hdmi-monitor='xrandr --output HDMI1 --auto --right-of eDP1'
+# alias python='python3.6'
+alias nautilus='nautilus --new-window'
+alias iphone='nmcli device wifi connect 'n-osakoのiPhone' password "to271828" ifname wlp2s0
+'
+autoload -U compinit
+compinit
+zstyle ':completion:*:default' menu select=2
+
+
+#PATH
+# export PATH=$HOME/tools/mips-elf/gcc-4.8.2/bin:$PATH
+# export LD_LIBRARY_PATH=/home/n-osako/tools/mpc-0.8.2/lib:/home/n-osako/tools/mpfr-3.1.4/lib:/home/n-osako/tools/gmp-6.1.0/lib:$LD_LIBRARY_PATH 
+# export PATH=$HOME/ccap/bin:$PATH 
+# export LIBDIR=$HOME/ccap/ccaplib
+# export PATH=/opt/Xilinx/14.7/ISE_DS/ISE/bin/lin64/:$PATH
+# . $HOME/perl5/env.sh
+# export PATH=/opt/ibm/ILOG/CPLEX_Studio1261/cplex/bin/x86-64_linux:$PATH
+export PATH=$HOME/shdir/:$PATH
+# export PATH=$HOME/tools/mips-elf/gcc-4.8.2:$PATH
+# export LD_LIBRARY_PATH=$HOME/tools/mpc-1.0.3/lib:$HOME/tools/mpfr-3.1.4/lib:$HOME/tools/gmp-6.1.0/lib:$LD_LIBRARY_PATH
+# export PATH=$HOME/opt/Xilinx/Vivado/2016.4/bin/:$PATH
+# export PATH=$HOME/opt/Xilinx/Vivado_HLS/2016.4/bin/:$PATH
+# export PATH=$HOME/shdir/node-v8.11.3-linux-x64/bin:$PATH
+export PATH=$HOME/merp:$PATH
+
+
+autoload -U compinit
+compinit
+setopt auto_cd
+setopt auto_pushd
+setopt correct
+
+
+function chpwd() { ls }
+# command correct edition before each completion attempt
+#コマンドをtypeしたときに聞きなおしてくれる
+setopt correct
+
+# compacked complete list display
+#表示を詰めてくれる
+setopt list_packed
+
+
+bindkey -e
+
+# 他のターミナルとヒストリーを共有
+setopt share_history
+
+# ヒストリーに重複を表示しない
+setopt histignorealldups
+
+HISTSIZE=5000
+HISTFILE=~/.zsh_history
+SAVEHIST=5000
+
+# 補完で大文字にもマッチ
+zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'
+
+# Ctrl+rでヒストリーのインクリメンタルサーチ、Ctrl+sで逆順
+bindkey '^r' history-incremental-pattern-search-backward
+bindkey '^s' history-incremental-pattern-search-forward
+
+
+# mkdirとcdを同時実行
+function mkcd() {
+  if [[ -d $1 ]]; then
+    echo "$1 already exists!"
+    cd $1
+  else
+    mkdir -p $1 && cd $1
+  fi
+}
+
+# create emacs env file
+perl -wle \
+   'do { print qq/(setenv "$_" "$ENV{$_}")/ if exists $ENV{$_} } for @ARGV' \
+    PATH > ~/.emacs.d/shellenv.el
+
+export WWW_HOME="google.co.jp"
+function google() {
+    local str opt
+    if [ $# != 0 ]; then
+        for i in $*; do
+            str="$str+$i"
+        done
+        str=`echo $str | sed 's/^\+//'`
+        opt='search?num=50&hl=ja&lr=lang_ja'
+        opt="${opt}&q=${str}"
+    fi
+    w3m http://www.google.co.jp/$opt
+}
+
+# source /home/n-osako/shdir/lab-nas.sh
+# source ~/.profile
+
+function md2pdf() {
+    if [ $# = 1 ]; then
+        fname_ext=$1
+        fname="${fname_ext%.*}"
+        pandoc $1 -o $fname.pdf -V mainfont=IPAPGothic -V fontsize=16pt --pdf-engine=lualatex
+    else
+        echo 'usage: md2pdf file.md'
+    fi
+}
+
+
+function md2docx() {
+    if [ $# = 1 ]; then
+        fname_ext=$1
+        fname="${fname_ext%.*}"
+        pandoc $1 -t docx -o $fname.docx -V mainfont=IPAPGothic -V fontsize=16pt --toc --highlight-style=zenburn
+    else
+        echo 'usage: md2docx file.md'
+    fi
+}
+export PATH="$HOME/.rbenv/bin:$PATH"
+# eval "$(rbenv init -)"
+export PATH="$HOME/.plenv/bin:$PATH"
+eval "$(plenv init -)"
+
+
+export PERL_CPANM_OPT="--local-lib=~/perl5"
+export PATH=$HOME/perl5/bin:$PATH;
+export PERL5LIB=$HOME/perl5/lib/perl5:$PERL5LIB;

@@ -1,0 +1,128 @@
+cd rsa/rsa_osako/
+ls
+ls srrpq.*
+cd ..
+cd 
+cd isedir/srrpq0609/
+ls
+ls
+cd
+cd rsa/rsa_osako/
+gcc fscamep.c
+gcc srr.c
+ls
+ls
+cd
+cd rsa/rsa_osako/srrthes/
+gcc srr.c 
+./a.out 
+gcc srr.c 
+./a.out 
+gcc srr.c 
+./a.out 
+gcc srr.c 
+./a.out 
+gcc srr.c 
+./a.out 
+gcc srr.c 
+./a.out 
+gcc srr.c 
+./a.out 
+..
+inas
+gcc srrpq.c 
+./a.out 
+gcc srrpq.c 
+./a.out 
+gcc srrpq.c 
+./a.out 
+ls
+echo $PATH
+gcc srrpq.c 
+./a.out 
+gcc srrpq.c 
+./a.out 
+gcc srrpq.c 
+./a.out 
+gcc srrpq.c 
+./a.out 
+gcc srrpq.c 
+./a.out 
+evince ota.tex
+evince ota.pdf 
+ls
+cd 
+ls
+cd 
+ls
+cd ledcamp/
+cd 
+ls
+cd ledcamp/
+ls
+cd prelib/
+ls
+./ledslider 
+ls
+ls
+ls
+cd shdir/
+ls
+ls
+ls
+ls *.v
+LDST.v  acap_mdu_mul.v  acap_mul.vls  alu.v  mips_hw_test.v
+ls
+cd
+cd rsa/rsa_osako/
+ls
+cd pastrsa/
+ls
+cp rsa.v ~/shdir/
+cd
+cd shdir/
+ls
+cd perl-assignment-2017/
+ls
+mv rsa_d.mem ../
+ls
+cd
+cd shdir/perl-assignment-2017
+ls
+
+cd
+ls
+ls
+cd shdir/
+ls
+mv rsa_d.mem perl-clone-2017.sh.old
+ls
+ls
+cd perl-assignment-2017/
+ls
+cd ..
+ls
+..
+ls
+cd
+ls
+ls
+cd shdir/
+ls
+..
+ls
+cd shdir/
+mv perl-clone-2017.sh.old 
+mv perl-clone-2017.sh.old rsa_d.mem
+mv rsa_d.mem perl-assignment-2017/
+ls
+cd shdir/
+chmod +x memo.sh
+ls
+cd download/
+ls
+ls *.jpg
+ls jpg
+ls jpeg
+ls *jpeg
+ls
