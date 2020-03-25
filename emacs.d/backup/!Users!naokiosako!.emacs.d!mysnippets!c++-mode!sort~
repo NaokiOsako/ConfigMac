@@ -1,0 +1,5 @@
+# -*- mode: snippet -*-
+# name: sort
+# key: sort
+# --
+sort(v.begin(), v.end());

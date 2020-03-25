@@ -1,0 +1,293 @@
+ #+STARTUP: showall
+
+#+LATEX_HEADER: \renewcommand \maketitle{}
+
+
+#+LANGUAGE: ja
+#+OPTIONS: toc:nil timestamp:nil creator:nil f:nil ^:{}
+#+LATEX_CLASS: jsarticle
+#+LATEX_CLASS_OPTIONS: [a4paper, 10.5pt]
+
+# ---------- package setting ----------
+# #+LATEX_HEADER: \usepackage{txfonts}
+#+LATEX_HEADER: \usepackage{bm}
+#+LATEX_HEADER: \usepackage{multicol}
+#+LATEX_HEADER: \usepackage{dcolumn}
+#+LATEX_HEADER: \usepackage{listings,jlisting} 
+
+# !! #+LATEX_HEADER: \usepackage[dvipdfmx]{graphicx}
+
+# ---------- margin setting ----------
+#+LATEX_HEADER: \setlength{\topmargin}{-20mm}
+#+LATEX_HEADER: \setlength{\oddsidemargin}{-10mm}
+#+LATEX_HEADER: \setlength{\textwidth}{180mm}
+#+LATEX_HEADER: \setlength{\textheight}{260mm}
+#+LATEX: \makeatletter
+#+LATEX: \def\section{\@startsection{section}{1}{\z@}%
+#+LATEX: {1.75ex plus 0.5ex minus .2ex}{0.75ex plus .2ex}{\normalsize\bf}}
+#+LATEX: \def\subsection{\@startsection{subsection}{2}{\z@}%
+#+LATEX: {1.5ex plus 0.5ex minus .2ex}{0.5ex plus .2ex}{\normalsize\bf}}
+#+LATEX: \def\subsection{\@startsection{subsection}{3}{\z@}%
+#+LATEX:{1.0ex plus 0.5ex minus .2ex}{0.5ex plus .2ex}{\normalsize\bf}}
+#+LATEX:\makeatother
+#+LATEX:\renewcommand{\baselinestretch}{0.85}%
+
+
+
+\begin{flushleft}
+
+\textbf{HLS 進捗報告}
+\end{flushleft}
+\begin{flushright}
+2019-7-16 (Tue)\par
+大窄直樹
+\end{flushright}
+
+* 研究テーマ
+  * FPGA 上で 機械学習を用いたモーターの故障検出
+
+* 進捗報告
+
+  * モーターをa故障させた
+    * 方法: 高電圧で回した
+    * 故障の確認: 駆動音の大幅な変化, シャフトを手で回した時の違和感
+    * 故障箇所: ブラシ, 固定子 (多分)
+
+  * WaveForm (Analog Discovery2 を使うためのソフト) の使い方ある程度理解した    
+
+  * モータの波形の取得 (図 \ref{normal}, 図 \ref{error})
+    * デューティー: 約25%, 50%, 75%
+    * 正常なモーター2個, 故障したモーター2個(故障大, 故障小)
+
+  * モーターの故障検知の論文から似ている正常/故障時の波形を探した (図 \ref{thesis_health}, 図 \ref{thesis_error})
+    * 参考論文: Induction Motors’ Faults Detection and LocalizationUsing Stator Current Advanced Signal Processing echnique Jun. 1999)
+  * C++ で高調波成分の探索するシミュレータを作成
+    * 顕著な差が現れている
+
+  * 考察
+    * 正常なモーターではピーク時の周波数が同じ
+    * 故障したモーターではピーク時の周波数が同じ
+    * 故障したモーターは振幅が大きくなる
+    * どのデューティーでも差が現れている
+
+
+    
+
+
+* 今後の課題
+  * 単相モータの故障検知のアルゴリズムを探す
+    * 15本くらい論文読んでいるけど, 多層モータの故障検知に関するものしかない
+    * 単相モータの故障検知誰かやったことあるの?
+  * AD コンバータ経由で FPGA にデータを入力
+    * とても難しそう
+  * サンプル数増やす
+    * モーター1個動かなくなってしまった...
+  * 研究の方向性考える
+    * リアルタイムで故障検知?
+    * 故障検知を行うモーターは単相モーターでいいの?
+      * 多相モーターはかなりやられてる
+# 異常検知と変化検知
+
+
+
+\newpage
+
+\begin{figure}[htbp]
+ \begin{center}
+  \includegraphics[width=150mm]{0-500normal.png} \end{center}
+ \caption{正常なモーターの波形(0-500Hz)} \label{normal} \end{figure}
+
+\begin{figure}[htbp]
+ \begin{center}
+  \includegraphics[width=150mm]{0-500error.png} \end{center}
+ \caption{故障したモーターの波形 (0-500Hz)} \label{error} \end{figure}
+
+\begin{figure}[htbp]
+ \begin{center}
+  \includegraphics[width=150mm]{thesis_health.png} \end{center}
+ \caption{論文: 正常なモーターの波形 (0-500Hz)} \label{thesis_health}
+ \end{figure}
+
+\begin{figure}[htbp]
+ \begin{center}
+  \includegraphics[width=150mm]{voltage_unbalance.png} \end{center}
+ \caption{論文: 固定子への電圧がアンバランスなモーターの波形
+ (0-500Hz)} \label{thesis_error} \end{figure}
+
+\newpage
+ \begin{lstlisting}[
+   basicstyle={\ttfamily}, identifierstyle={\small},
+   commentstyle={\smallitshape}, keywordstyle={\small\bfseries},
+   ndkeywordstyle={\small}, stringstyle={\small\ttfamily}, frame={tb},
+   breaklines=true, numbers=left, xrightmargin=0zw, xleftmargin=3zw,
+   numberstyle={\scriptsize}, stepnumber=1, numbersep=1zw,
+   lineskip=-0.5ex, ] 
+#include<bits/stdc++.h>
+using namespace std;
+
+#define SAMPLE 4096 // sample
+int main(){
+    vector<pair<double, double>> datas(SAMPLE), maxDatas;
+    pair<double, double> data; // first: db, second: Hz
+    bool flag;
+
+    //input
+    for(int i=0; i<SAMPLE; i++)
+	cin >> datas[i].second >> datas[i].first;
+    
+    //sort
+    sort(datas.begin(), datas.end(), greater<pair<double, double>>());
+
+    for(int i=0; i<100; i++){
+	if(datas[i].second <5)
+	    continue;
+	flag = true;
+	//ignore
+	for(int j=0; j<maxDatas.size(); j++){
+	    if(maxDatas[j].second-3<datas[i].second && datas[i].second<maxDatas[j].second+3){
+		flag = false;
+	    }
+	}
+	if(flag)
+	    maxDatas.push_back(datas[i]);
+    }
+    
+    for(int i=0; i<min((int)maxDatas.size(), 3); i++)
+	cout << i+1<<" 次高調波成分: "<<maxDatas[i].second << "Hz"<< " " << maxDatas[i].first <<"db"<< endl;    	      
+}
+\end{lstlisting}
+\begin{center}
+プログラム1: 高調波成分の探索プログラム
+\end{center}
+
+\newpage
+
+
+\begin{table}[t]
+  \begin{center}
+    \begin{footnotesize}
+      \caption{\small duty: 25\%, シミュレーション結果}\label{mong}
+      \vspace{5pt}
+      \begin{tabular}{|l|D{.}{.}{5}|D{.}{.}{5}|D{.}{.}{5}|D{.}{.}{5}|D{.}{.}{5}|D{.}{.}{5}|}
+        \hline
+        \multicolumn{1}{|c|}{モーター}&  \multicolumn{2}{|c|}{1 次高調波成分}& \multicolumn{2}{|c|}{2 次高調波成分}& \multicolumn{2}{|c}{3 次高調波成分}\\ \hline 
+        \multicolumn{1}{|c|}{}& \multicolumn{1}{|c|}{周波数 (Hz)} & \multicolumn{1}{|c|}{振幅 (db)}& \multicolumn{1}{|c|}{周波数 (Hz)} & \multicolumn{1}{|c|}{振幅 (db)}& \multicolumn{1}{|c|}{周波数 (Hz)} & \multicolumn{1}{|c|}{振幅 (db)}\\ \hline 
+        モーター1 (正常)        & 92.6514 & -6.36153&   185.303 & -8.98168  & 278.076 & -14.531 \\  
+        モーター2 (正常)           & 93.0176 & -7.44374 & 186.035 & -10.2914 & 279.053 & -16.3386 \\   \hline 
+        モーター3 (故障大)         & 90.8203 & -1.7791 & 181.641 & -4.3389   & 272.583 & -9.58421 \\ 
+        モーター4 (故障小)  &   87.5244 & -1.68846  &  175.049 & -4.89352 & 262.573 & -12.252 \\   \hline
+      \end{tabular}
+    \end{footnotesize}
+  \end{center}
+\end{table}
+
+\begin{table}[t]
+  \begin{center}
+    \begin{footnotesize}
+      \caption{\small duty: 50\%, シミュレーション結果}\label{mong}
+      \vspace{5pt}
+      \begin{tabular}{|l|D{.}{.}{5}|D{.}{.}{5}|D{.}{.}{5}|D{.}{.}{5}|D{.}{.}{5}|D{.}{.}{5}|}
+        \hline
+        \multicolumn{1}{|c|}{モーター}&  \multicolumn{2}{|c|}{1 次高調波成分}& \multicolumn{2}{|c|}{2 次高調波成分}& \multicolumn{2}{|c}{3 次高調波成分}\\ \hline 
+        \multicolumn{1}{|c|}{}& \multicolumn{1}{|c|}{周波数 (Hz)} & \multicolumn{1}{|c|}{振幅 (db)}& \multicolumn{1}{|c|}{周波数 (Hz)} & \multicolumn{1}{|c|}{振幅 (db)}& \multicolumn{1}{|c|}{周波数 (Hz)} & \multicolumn{1}{|c|}{振幅 (db)}\\ \hline 
+        モーター1 (正常)        & 92.7734 & -7.88685& 278.442 & -17.1616  & 464.111 &-21.5015 \\  
+        モーター2 (正常)           & 92.5293 & -9.56544 & 277.588 & -19.0085 & 462.646 & -23.4808 \\   \hline 
+        モーター3 (故障大)         & 86.9141 & 1.38768 & 260.864 & -8.48264   & 434.937 &-13.6099 \\ 
+        モーター4 (故障小)  &   87.0361 & -3.70693  &  260.986 & -13.7807 & 434.937 &-19.6991 \\   \hline
+      \end{tabular}
+    \end{footnotesize}
+  \end{center}
+\end{table}
+
+\begin{table}[t]
+  \begin{center}
+    \begin{footnotesize}
+      \caption{\small duty: 75\%, シミュレーション結果}\label{mong}
+      \vspace{5pt}
+      \begin{tabular}{|l|D{.}{.}{5}|D{.}{.}{5}|D{.}{.}{5}|D{.}{.}{5}|D{.}{.}{5}|D{.}{.}{5}|}
+        \hline
+        \multicolumn{1}{|c|}{モーター}&  \multicolumn{2}{|c|}{1 次高調波成分}& \multicolumn{2}{|c|}{2 次高調波成分}& \multicolumn{2}{|c}{3 次高調波成分}\\ \hline 
+        \multicolumn{1}{|c|}{}& \multicolumn{1}{|c|}{周波数 (Hz)} & \multicolumn{1}{|c|}{振幅 (db)}& \multicolumn{1}{|c|}{周波数 (Hz)} & \multicolumn{1}{|c|}{振幅 (db)}& \multicolumn{1}{|c|}{周波数 (Hz)} & \multicolumn{1}{|c|}{振幅 (db)}\\ \hline 
+        モーター1 (正常)        & 91.9189 & -14.9562& 183.716 & -17.738 & 275.513 &-23.7499 \\  
+        モーター2 (正常)           & 91.6748 & -15.2131 & 183.228 &-18.3873 & 274.78 & -25.9 \\   \hline 
+        モーター3 (故障大)         & 84.4727 & -2.75653 & 168.823 &-7.99842  & 337.646 & -16.2098 \\ 
+        モーター4 (故障小)  & 84.5947 & -7.30651 & 169.067 & -11.3457 & 422.607 &-18.2534 \\ \hline
+      \end{tabular}
+    \end{footnotesize}
+  \end{center}
+\end{table}
+
+
+
+
+  # * モーターの故障のさせかた考えてみた
+  #   * ベアリング(回転するときの音が変わるらしい怖い)
+  #     * 物理的にに壊す
+  #     * 乾かしてから回して壊す
+  #   * 電機子, 固定子
+  #     * 過電流で回し続けて焦がす (どれくらい時間かかるのだろう)
+  #   * 電子機の部品
+  #     * ローター, ローターバーを物理的に壊す
+
+
+  # * モーターの故障の種類
+  # * ベアリング故障
+  #   * 原因: 不適切な潤滑下での加熱や摩耗など
+  #   * 故障の割合:40 - 50%
+  # * 電機子, 固定子の故障 
+  #   * 原因: 固定子, 巻線の高音など
+  #   * 序盤の検出は難しい, 絶縁不良になる
+  #   * 故障の割合: 30 - 40%
+  #   * どの故障検知の手法でも低電圧モーターなら難しい (4kV以上ならできる)
+  #   * MCSAでは電圧のブレと混同するための故障検知はできない
+  # * 電機子の部品(ローターバー, エンドリング)の故障 
+  #   * 原因: 環境, 過負荷, 摩耗
+  #   * 故障の割合: 5 - 10%
+  # * 偏心関連の故障 
+  #   * 原因: 固定子と回転子間の空間が偏っている
+      
+
+# \begin{figure}[htbp]
+#  \begin{center}
+#   \includegraphics[width=100mm]{FFT.png}
+#  \end{center}
+#  \caption{電子機器の部品の故障, 上: 正常時, 中: 電圧不足, 下: 固定子故障}
+#  \label{less}
+# \end{figure}
+
+#   * 21番目が増加するのは固定子故障の場合のみ
+
+
+
+#   * 故障検知の方法かなりあった
+#   * 一般的な方法は (Motor Current Signature Analysis)MCSAらしい
+#     * 電流での解析
+#     * 1999年から主流になった
+      
+
+# * 研究テーマ
+#   * 機械学習を用いたモータの劣化検知と制御のハードウェア実装
+
+# * 進捗報告
+#   * ASTEMで何が決まったか気になる...
+
+# * 今後の課題
+#   * 決まったことを全力でやる
+
+# FFT→
+# ベイズ推定
+# 電流測る
+
+
+
+
+
+
+
+  
+
+
+
+
+
+

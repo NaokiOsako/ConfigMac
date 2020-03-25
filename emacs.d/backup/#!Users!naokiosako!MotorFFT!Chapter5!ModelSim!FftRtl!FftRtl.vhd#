@@ -1,0 +1,309 @@
+-- The top module of FFT written in RTL
+-- by Toshio Iwata at digitalfilter.com 2009/06/12
+
+library ieee ;
+use ieee.std_logic_1164.all ;
+use ieee.std_logic_arith.all ;
+use ieee.std_logic_unsigned.all;
+
+-------------------------------------------------------------------------------
+-- Entity
+-------------------------------------------------------------------------------
+entity FftRtl is
+port(
+  CLK : in std_logic;                            -- clock (50MHz)
+  RST_N : in std_logic;                          -- reset (active low)
+  FIFO_RD_START : in std_logic;                      -- a trigger to read fifo
+  FIFO_WR_START : in std_logic;                      -- a trigger to write fifo
+  iW_ce0 : out std_logic;
+  iW_data : in std_logic_vector( 15 downto 0 )  ; 
+  oR_ce0 : out std_logic;
+  oR_data : out std_logic_vector( 15 downto 0 )  ; 
+  CAP_START : in std_logic;                      -- a trigger to capture A/D data
+  FFT_START : in std_logic;                      -- a trigger to execute FFT
+  ADATA : In std_logic;                          -- serial data from A/D
+  ALRCLK : Out std_logic;                        -- L/R clock (97.7kHz) to A/D
+  ABCLK : Out std_logic;                         -- Bit clock (6.25MHz) to A/D
+  AMCLK : Out std_logic;                         -- Master clock (25MHz) to A/D
+  CAPSEL : Out std_logic;                        -- data capturing period (1024/97.7kHz)
+  FFTSEL : Out std_logic;                        -- FFT execution period (10294/50MHz)
+  UP_IMAG_SEL : In std_logic );                  -- SRAM selection (0:Real, 1:Imag)
+end FftRtl;
+
+-------------------------------------------------------------------------------
+-- Architecture
+-------------------------------------------------------------------------------
+architecture RTL of FftRtl is
+
+component AdrsGen
+port( 	
+  CLK : in std_logic;
+  RST_N : in std_logic;
+  FFT_START : in std_logic; 
+  FFT_SEL : out std_logic; 
+  FFT_END : out std_logic;
+  PHASE_K : out std_logic;
+  PHASE_I : out std_logic;
+  FFT_ADDR : out std_logic_vector(9 downto 0); 
+  TRI_ADDR : out std_logic_vector(9 downto 0) ); 
+end component;
+
+component TimingGen
+   Port (
+  CLK : in std_logic;
+  RST_N : in std_logic;
+  CAP_START : in std_logic;
+  CAP_SEL : out std_logic;
+  ALRCLK : Out std_logic;
+  ABCLK : Out std_logic;
+  AMCLK : Out std_logic;
+  ADDRADC : Out std_logic_vector(9 downto 0) ); 
+end component;
+
+  component TriRom
+  Port (
+          CLK : In std_logic;
+          CS_N : In std_logic;
+          ADDR : In std_logic_vector(9 downto 0);
+          DATA : Out std_logic_vector(19 downto 0) );
+  end component;
+
+component Ram
+   Port (
+          CLK : In std_logic;
+          CS_N : In std_logic;
+          WR_N : In std_logic;
+          WRADDR : In std_logic_vector(9 downto 0);
+          RDADDR : In std_logic_vector(9 downto 0);
+          WRDATA : In std_logic_vector(15 downto 0);
+          RDDATA : Out std_logic_vector(15 downto 0) );
+end component;
+
+component RamCtrl
+   Port (
+    MCLK         : in    std_logic                           ; 
+    RST_X        : in    std_logic                           ; 
+  FIFO_RD_START : in std_logic; 
+  FIFO_WR_START : in std_logic;            
+  iW_ce0 : out std_logic;
+  iW_data : in std_logic_vector( 15 downto 0 )  ;
+  oR_ce0 : out std_logic;
+  oR_data : out std_logic_vector( 15 downto 0 )  ; 
+    FFT_ADDR     : in    std_logic_vector(   9 downto   0 )  ; 
+    CAP_SEL      : in    std_logic                           ; 
+    FFT_SEL      : in    std_logic                           ; 
+    REAL_RD_ADDR : out   std_logic_vector(   9 downto   0 )  ;
+    IMAG_RD_ADDR : out   std_logic_vector(   9 downto   0 )  ;
+    REAL_WR_ADDR : out   std_logic_vector(   9 downto   0 )  ;
+    IMAG_WR_ADDR : out   std_logic_vector(   9 downto   0 )  ;
+    PHASE_I : in std_logic;
+    CS_0_X    : out   std_logic                           ;
+    CS_1_X    : out   std_logic                           ;
+    WR_0_X    : out   std_logic                           ;
+    WR_1_X    : out   std_logic                           ;
+    REAL_RD_DATA : in    std_logic_vector(  15 downto   0 )  ;
+    IMAG_RD_DATA : in    std_logic_vector(  15 downto   0 )  ;
+    REAL_WR_DATA : out   std_logic_vector(  15 downto   0 )  ;
+    IMAG_WR_DATA : out   std_logic_vector(  15 downto   0 )  ;
+    FFT_REAL_RD_DATA : out   std_logic_vector(  15 downto   0 )  ;
+    FFT_IMAG_RD_DATA : out   std_logic_vector(  15 downto   0 )  ;
+    FFT_REAL_WR_DATA : in    std_logic_vector(  15 downto   0 )  ;
+    FFT_IMAG_WR_DATA : in    std_logic_vector(  15 downto   0 )  ;
+    ADC_ADDR : in std_logic_vector(   9 downto   0 )  ;
+    ADC_DATA : in std_logic_vector(  15 downto   0 )  ;
+  UP_IMAG_SEL : In std_logic );
+end component;
+
+	component butterfly
+   	port(
+    MCLK         : in    std_logic                           ;
+    RST_X        : in    std_logic                           ;
+    PHASE_K       : in    std_logic                           ;
+    TRI_RD_DATA  : in    std_logic_vector(  19 downto   0 )  ;
+    FFT_REAL_RD_DATA : in    std_logic_vector(  15 downto   0 )  ;
+    FFT_IMAG_RD_DATA : in    std_logic_vector(  15 downto   0 )  ;
+    FFT_REAL_WR_DATA : out   std_logic_vector(  15 downto   0 )  ;
+    FFT_IMAG_WR_DATA : out   std_logic_vector(  15 downto   0 ) );
+	end component;
+
+-------------------------------------------------------------------------------
+-- Signal
+-------------------------------------------------------------------------------
+signal dummy_low : std_logic;
+signal dummy_high : std_logic;
+signal AMCLK_sig : std_logic;
+signal ALRCLK_sig : std_logic;
+signal ABCLK_sig : std_logic;
+signal ADATA_latch : std_logic;
+signal ALRCLK_latch_l : std_logic;
+signal ALRCLK_latch_r : std_logic;
+signal ABCLK_latch : std_logic;
+signal ADC_ADDR_sig : std_logic_vector(9 downto 0) ;
+signal ADC_DATA_sig : std_logic_vector(15 downto 0) ;
+signal     WR_0_X_sig    :    std_logic                           ;
+signal     WR_1_X_sig    :    std_logic                           ;
+signal     REAL_RD_DATA_sig :    std_logic_vector(  15 downto   0 )  ;
+signal     IMAG_RD_DATA_sig :    std_logic_vector(  15 downto   0 )  ;
+signal     REAL_WR_DATA_sig :    std_logic_vector(  15 downto   0 )  ;
+signal     IMAG_WR_DATA_sig :    std_logic_vector(  15 downto   0 )  ;
+signal     REAL_RD_ADDR_sig :    std_logic_vector(   9 downto   0 )  ;
+signal     IMAG_RD_ADDR_sig :    std_logic_vector(   9 downto   0 )  ;
+signal     REAL_WR_ADDR_sig :    std_logic_vector(   9 downto   0 )  ;
+signal     IMAG_WR_ADDR_sig :    std_logic_vector(   9 downto   0 )  ;
+signal     FFT_REAL_RD_DATA_sig :    std_logic_vector(  15 downto   0 )  ;
+signal     FFT_IMAG_RD_DATA_sig :    std_logic_vector(  15 downto   0 )  ;
+signal     FFT_REAL_WR_DATA_sig :    std_logic_vector(  15 downto   0 )  ;
+signal     FFT_IMAG_WR_DATA_sig :    std_logic_vector(  15 downto   0 )  ;
+signal     FFT_ADDR_sig     :    std_logic_vector(   9 downto   0 )  ;
+signal     FFT_SEL_sig      :    std_logic                           ;
+signal     CS_0_X_sig    :    std_logic                           ;
+signal     CS_1_X_sig    :    std_logic                           ;
+signal     CAP_SEL_sig    :    std_logic ;
+	signal PHASE_K_sig : std_logic;
+	signal PHASE_I_sig : std_logic;
+signal TRI_RD_DATA_sig : std_logic_vector(19 downto 0) ;
+	signal TRI_ADDR_sig : std_logic_vector (9 downto 0);
+signal     REAL_RD_DATA_0 :    std_logic_vector(  15 downto   0 )  ;
+signal     IMAG_RD_DATA_0 :    std_logic_vector(  15 downto   0 )  ;
+signal     REAL_RD_DATA_1 :    std_logic_vector(  15 downto   0 )  ;
+signal     IMAG_RD_DATA_1 :    std_logic_vector(  15 downto   0 )  ;
+
+begin
+
+  dummy_low <= '0';
+  dummy_high <= '1';
+  
+  CAPSEL <= CAP_SEL_sig;
+  FFTSEL <= FFT_SEL_sig;
+
+-----------------------------------------------
+AdrsGen_1 : AdrsGen 
+port map (
+  CLK => CLK,  
+  RST_N => RST_N, 
+  FFT_START => FFT_START, 
+  FFT_SEL => FFT_SEL_sig, 
+  FFT_END => open, 
+  PHASE_K       => PHASE_K_sig, 
+  PHASE_I       => PHASE_I_sig, 
+  FFT_ADDR => FFT_ADDR_sig,
+  TRI_ADDR => TRI_ADDR_sig );
+
+-----------------------------------------------
+TimingGen_1 : TimingGen 
+port map (
+  CLK => CLK,  
+  RST_N => RST_N, 
+  CAP_START => CAP_START, 
+  CAP_SEL => CAP_SEL_sig, 
+  ALRCLK => ALRCLK_sig,
+  ABCLK => ABCLK_sig,
+  AMCLK => AMCLK_sig,
+  ADDRADC => ADC_ADDR_sig ); 
+
+-------------------------------------------------------------------
+TriRom_1 : TriRom port map (
+          CLK => CLK,
+          CS_N => dummy_low,
+          ADDR => TRI_ADDR_sig,
+          DATA => TRI_RD_DATA_sig );
+
+-------------------------------------------------------------------
+REAL_RD_DATA_sig <= REAL_RD_DATA_0 when WR_0_X_sig = '1' and FIFO_WR_START = '0' else REAL_RD_DATA_1;
+IMAG_RD_DATA_sig <= IMAG_RD_DATA_0 when WR_0_X_sig = '1' and FIFO_WR_START = '0' else IMAG_RD_DATA_1;
+
+-------------------------------------------------------------------
+Ram_0_real : Ram port map (
+          CLK => CLK,
+          CS_N => CS_0_X_sig,
+          WR_N => WR_0_X_sig,
+          WRADDR => REAL_WR_ADDR_sig,
+          RDADDR => REAL_RD_ADDR_sig,
+          WRDATA => REAL_WR_DATA_sig(15 downto 0),
+          RDDATA => REAL_RD_DATA_0(15 downto 0) );
+
+-------------------------------------------------------------------
+Ram_0_imag : Ram port map (
+          CLK => CLK,
+          CS_N => CS_0_X_sig,
+          WR_N => WR_0_X_sig,
+          WRADDR => IMAG_WR_ADDR_sig,
+          RDADDR => IMAG_RD_ADDR_sig,
+          WRDATA => IMAG_WR_DATA_sig(15 downto 0),
+          RDDATA => IMAG_RD_DATA_0(15 downto 0) );
+
+-------------------------------------------------------------------
+Ram_1_real : Ram port map (
+          CLK => CLK,
+          CS_N => CS_1_X_sig,
+          WR_N => WR_1_X_sig,
+          WRADDR => REAL_WR_ADDR_sig,
+          RDADDR => REAL_RD_ADDR_sig,
+          WRDATA => REAL_WR_DATA_sig(15 downto 0),
+          RDDATA => REAL_RD_DATA_1(15 downto 0) );
+
+-------------------------------------------------------------------
+Ram_1_imag : Ram port map (
+          CLK => CLK,
+          CS_N => CS_1_X_sig,
+          WR_N => WR_1_X_sig,
+          WRADDR => IMAG_WR_ADDR_sig,
+          RDADDR => IMAG_RD_ADDR_sig,
+          WRDATA => IMAG_WR_DATA_sig(15 downto 0),
+          RDDATA => IMAG_RD_DATA_1(15 downto 0) );
+
+-------------------------------------------------------------------
+RamCtrl_1 : RamCtrl
+	port map(
+    MCLK         => CLK, 
+    RST_X        => RST_N, 
+  FIFO_RD_START => FIFO_RD_START, 
+  FIFO_WR_START => FIFO_WR_START, 
+  iW_ce0 => iW_ce0, 
+  iW_data => iW_data, 
+  oR_ce0 => oR_ce0, 
+  oR_data => oR_data, 
+    FFT_ADDR     => FFT_ADDR_sig, 
+    CAP_SEL      => CAP_SEL_sig, 
+    FFT_SEL      => FFT_SEL_sig, 
+    REAL_RD_ADDR => REAL_RD_ADDR_sig, 
+    IMAG_RD_ADDR => IMAG_RD_ADDR_sig, 
+    REAL_WR_ADDR => REAL_WR_ADDR_sig, 
+    IMAG_WR_ADDR => IMAG_WR_ADDR_sig, 
+    PHASE_I => PHASE_I_sig, 
+    CS_0_X    => CS_0_X_sig, 
+    CS_1_X    => CS_1_X_sig, 
+    WR_0_X    => WR_0_X_sig, 
+    WR_1_X    => WR_1_X_sig, 
+    REAL_RD_DATA => REAL_RD_DATA_sig, 
+    IMAG_RD_DATA => IMAG_RD_DATA_sig, 
+    REAL_WR_DATA => REAL_WR_DATA_sig, 
+    IMAG_WR_DATA => IMAG_WR_DATA_sig, 
+    FFT_REAL_RD_DATA => FFT_REAL_RD_DATA_sig, 
+    FFT_IMAG_RD_DATA => FFT_IMAG_RD_DATA_sig, 
+    FFT_REAL_WR_DATA => FFT_REAL_WR_DATA_sig, 
+    FFT_IMAG_WR_DATA => FFT_IMAG_WR_DATA_sig,
+    ADC_ADDR => ADC_ADDR_sig, 
+    ADC_DATA => ADC_DATA_sig,
+    UP_IMAG_SEL => UP_IMAG_SEL );
+
+-------------------------------------------------------------------
+	butterfly_1 : butterfly
+p	port map(
+    MCLK         => CLK,
+    RST_X        => RST_N, 
+    PHASE_K       => PHASE_K_sig, 
+    TRI_RD_DATA  => TRI_RD_DATA_sig, 
+    FFT_REAL_RD_DATA => FFT_REAL_RD_DATA_sig, 
+    FFT_IMAG_RD_DATA => FFT_IMAG_RD_DATA_sig, 
+    FFT_REAL_WR_DATA => FFT_REAL_WR_DATA_sig, 
+    FFT_IMAG_WR_DATA => FFT_IMAG_WR_DATA_sig  
+   );
+
+-------------------------------------------------------------------
+  ALRCLK <= ALRCLK_sig;
+  ABCLK <= ABCLK_sig;
+  AMCLK <= AMCLK_sig;
+
+end RTL;
+

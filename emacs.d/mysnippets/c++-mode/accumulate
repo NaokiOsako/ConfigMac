@@ -1,0 +1,5 @@
+# -*- mode: snippet -*-
+# name:accumulate 
+# key: acc
+# --
+accumulate(v.begin(), v.end(), 0);

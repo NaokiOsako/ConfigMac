@@ -1,0 +1,33 @@
+#include<bits/stdc++.h>
+using namespace std;
+
+#define SAMPLE 4096 // sample
+int main(){
+    vector<pair<double, double>> datas(SAMPLE), maxDatas;
+    pair<double, double> data; // first: db, second: Hz
+    bool flag;
+
+    //input
+    for(int i=0; i<SAMPLE; i++)
+	cin >> datas[i].second >> datas[i].first;
+    
+    //sort
+    sort(datas.begin(), datas.end(), greater<pair<double, double>>());
+
+    for(int i=0; i<100; i++){
+	if(datas[i].second <5)
+	    continue;
+	flag = true;
+	//ignore
+	for(int j=0; j<maxDatas.size(); j++){
+	    if(maxDatas[j].second-3<datas[i].second && datas[i].second<maxDatas[j].second+3){
+		flag = false;
+	    }
+	}
+	if(flag)
+	    maxDatas.push_back(datas[i]);
+    }
+    
+    for(int i=0; i<min((int)maxDatas.size(), 3); i++)
+	cout << i+1<<" 次高調波成分: "<<maxDatas[i].second << "Hz"<< " " << maxDatas[i].first <<"db"<< endl;    	      
+}

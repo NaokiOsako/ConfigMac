@@ -1,0 +1,42 @@
+#!/bin/sh
+source config.sh
+declare -a work=()
+if [ $1 = "E1" ]; then
+    work=("${work1[@]}")
+elif [ $1 = "E2" ]; then
+    work=("${work22[@]}")
+elif [ $1 = "P1" ]; then
+    work=("${work2[@]}")
+elif [ $1 = "P2" ]; then
+    work=("${work3[@]}")
+elif [ $1 = "P3" ]; then
+    work=("${work4[@]}")
+elif [ $1 = "P4" ]; then
+    work=("${work5[@]}")
+elif [ $1 = "P6" ]; then
+    work=("${work7[@]}")    
+elif [ $1 = "P7" ]; then
+    work=("${work8[@]}")
+elif [ $1 = "P8" ]; then
+    work=("${work9[@]}")
+elif [ $1 = "P9" ]; then
+    work=("${work10[@]}")
+elif [ $1 = "P10" ]; then
+    work=("${work11[@]}")
+elif [ $1 = "P11" ]; then
+    work=("${work12[@]}")
+elif [ $1 = "P12" ]; then
+    work=("${work13[@]}")
+elif [ $1 = "P13" ]; then
+    work=("${work14[@]}")    
+fi    
+
+for((i = 0; i < ${#array[@]}; i++)) {
+    mkdir -p ./$1/
+    mkdir -p ./$1/${array[i]}
+    for((j = 0; j < ${#work[@]}; j++)) {
+           # wget -q --http-user=$username --http-password= https://ist.ksc.kwansei.ac.jp/~ishiura/cgi-bin/report/main.cgi\?S=2019cxa05\&act_item=1\&s=${array[i]}\&r=$1\&i=${work[j]} -O ./$1/${array[i]}/${work[j]}
+	   wget -q --http-user=$username --http-password=$password https://ist.ksc.kwansei.ac.jp/~ishiura/cgi-bin/report/main.cgi\?S=2019cxa05\&act_item=1\&s=${array[i]}\&r=$1\&i=${work[j]} -O ./$1/${array[i]}/${work[j]}
+    }
+   }
+

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <title>prototype</title>
+
+    <link rel="stylesheet" href="work.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://use.fontawesome.com/releases/v5.6.1/css/all.css" rel="stylesheet"> 
+  </head>
+  <body id="pagetop">
+    <header>
+      <div class="three">
+	<input class ="btn" type="button" onclick="./xxx.html" value="三">        
+      </div>
+    </header>
+
+    <main>
+      <div class="box">
+	<p>10:30^11:00</p>
+	<p>チャペルアワー<br></p>
+      </div>
+      <div class="box">
+	<p>10:30^11:00</p>
+	<p>チャペルアワー<br></p>
+      </div>
+    </main>
+
+    <footer>
+      <div class="footer-list">
+	<input type="button" onclick="./xxx.html" value="Q">
+	<input type="button" onclick="./xxx.html" value="S1">
+	<input type="button" onclick="./xxx.html" value="S2">
+	<input type="button" onclick="./xxx.html" value="MAP">
+      </div>
+    </footer>
+    
+    
+  </body>
+
+
+</html>

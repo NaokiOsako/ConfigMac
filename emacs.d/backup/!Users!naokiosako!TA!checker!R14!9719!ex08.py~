@@ -1,0 +1,98 @@
+#coding:utf-8
+import random as r
+import tkinter as tk
+import numpy
+
+#各種定義
+x = 0
+y = 0
+score = 0
+playtime = 10
+m = playtime * 1000
+
+
+
+#スタート処理
+def start():
+    title.destroy()
+    sb.destroy()
+    cv.delete("all")
+    play()
+    root.after(m, result)
+
+
+#プレイ処理
+
+#的の表示
+def play():
+    global x, y
+    #出現位置
+    x = r.randint(30,371)
+    y = r.randint(30,341)
+    #クリア
+    cv.delete("all")
+    #出現
+    cv.create_oval(x - 30, y - 30, x + 30, y + 30, fill = "blue", width = 1)
+    cv.create_oval(x - 20, y - 20, x + 20, y + 20, fill = "white", width = 0)
+    cv.create_oval(x - 10, y - 10, x + 10, y + 10, fill = "red", width = 0)
+
+def hit(event):
+    global score
+    #距離取得
+    t = numpy.array([x, y])
+    c = numpy.array([event.x, event.y])
+    d = numpy.linalg.norm(t - c)
+    if d <= 10: #赤ヒット
+        score = score + 50
+    elif d <= 20:#白ヒット
+        score = score + 30
+    elif d <= 30:#青ヒット
+        score = score + 10
+    if d <= 30:
+        play()
+        sr = tk.Label(cv, text = "score:" + str(score), bg = "#ccffff",
+                      font = ("", 20))
+        sr.place(x = 260, y = 370)
+        
+
+
+
+#ウィンドウ
+root = tk.Tk()
+root.geometry("400x400")
+root.title("的あてゲーム")
+cv = tk.Canvas(root, width = 400, height = 400, bg = "#ccffff")
+cv.pack()
+cv.bind("<Button - 1>", hit)
+
+
+
+#スタート画面
+#タイトル
+title = tk.Label(cv, text = "的あてゲーム", bg = "white", fg = "red",
+                 font = ("", 31))
+cv.create_rectangle(75, 50, 325, 105, fill = "white")
+title.place(x = 76, y = 51)
+
+#リザルト
+def result():
+    global x, y
+    cv.delete("all")
+    x = 10000
+    y = 10000
+    re = tk.Label(cv, text = "得点:" + str(score), bg = "#ccffff",
+                  font = ("", 31), fg = "red")
+    re. place(x = 100, y = 75)
+    
+
+
+
+#スタートボタン
+sb = tk.Button(cv, text = "スタート", bg = "red", bd = 7, fg = "white",
+               font = ("Helvetica", 14), width = 10, height = 2,
+               command = start)
+sb.place(x = 140, y = 200)
+
+
+
+root.mainloop()

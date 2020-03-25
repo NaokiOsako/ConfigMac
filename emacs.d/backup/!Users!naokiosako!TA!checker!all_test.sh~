@@ -1,0 +1,25 @@
+#!/bin/sh
+source config.sh
+declare -a work=()
+if [ $1 = "R5" ]; then
+    work=("${work5[@]}")
+elif [ $1 = "R6" ]; then
+    work=("${work6[@]}")
+elif [ $1 = "R7" ]; then
+    work=("${work7[@]}")
+elif [ $1 = "R8" ]; then
+    work=("${work8[@]}")
+elif [ $1 = "R10" ]; then
+    work=("${work10[@]}")
+elif [ $1 = "R12" ]; then
+    work=("${work12[@]}")    
+fi    
+
+for((i = 0; i < ${#array[@]}; i++)) {
+       echo "${array[i]}\n";
+       for((j = 0; j < ${#work[@]}; j++)) {
+	      echo $j;
+	      python3 ./$1/${array[i]}/${work[j]};
+	  }
+   }
+

@@ -1,0 +1,34 @@
+# coding: utf-8
+class User
+
+  @@count = 0
+
+  VERSION = 1.1
+
+  def initialize(name, age)
+    @@count += 1
+    @name = name
+    @age = age
+  end
+
+  def sayHi
+    puts "hi! i am #{@name}"
+  end
+  def sayOld
+    puts "My old is #{@age}"
+  end
+
+
+  def self.info
+    puts "#{VERSION}: User Class, #{@@count} instances."
+  end
+
+end
+
+tom = User.new("tom", 17)
+bob = User.new("bob", 18)
+steve = User.new("steve", 19)
+steve.sayOld
+
+User.info
+p User::VERSION

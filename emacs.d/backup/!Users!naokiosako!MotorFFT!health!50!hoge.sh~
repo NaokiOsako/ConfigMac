@@ -1,0 +1,5 @@
+source config.sh
+gcc test.cpp
+for((i = 0; i <${#array[@]} ; i++)) {
+       ./a.out < ${array[i]}
+}

@@ -1,0 +1,132 @@
+% Intended LaTeX compiler: pdflatex
+\documentclass[a4paper, 10.5pt]{jsarticle}
+\usepackage[dvipdfmx]{graphicx}
+\usepackage{url}
+\usepackage{atbegshi}
+\AtBeginShipoutFirst{\special{pdf:tounicode EUC-UCS2}}
+\usepackage[dvipdfmx,setpagesize=false]{hyperref}
+  \renewcommand \maketitle{}
+\usepackage{bm}
+\usepackage{multicol}
+\usepackage{dcolumn}
+\usepackage{listings,jlisting}
+\setlength{\topmargin}{-20mm}
+\setlength{\oddsidemargin}{-10mm}
+\setlength{\textwidth}{180mm}
+\setlength{\textheight}{260mm}
+\author{大窄直樹}
+\date{\today}
+\title{}
+\hypersetup{
+ pdfauthor={大窄直樹},
+ pdftitle={},
+ pdfkeywords={},
+ pdfsubject={},
+ pdfcreator={Emacs 26.1 (Org mode 9.0.6)}, 
+ pdflang={Ja}}
+\begin{document}
+
+\makeatletter
+\def\section{\@startsection{section}{1}{\z@}%
+{1.75ex plus 0.5ex minus .2ex}{0.75ex plus .2ex}{\normalsize\bf}}
+\def\subsection{\@startsection{subsection}{2}{\z@}%
+{1.5ex plus 0.5ex minus .2ex}{0.5ex plus .2ex}{\normalsize\bf}}
+\def\subsection{\@startsection{subsection}{3}{\z@}%
+{1.0ex plus 0.5ex minus .2ex}{0.5ex plus .2ex}{\normalsize\bf}}
+\makeatother
+\renewcommand{\baselinestretch}{0.85}%
+
+
+
+
+\begin{flushleft}
+
+\textbf{ASTEM 進捗報告}
+\end{flushleft}
+\begin{flushright}
+2019-12-7 (Sat)\par
+大窄直樹
+\end{flushright}
+\section{研究テーマ}
+\label{sec:org72097cd}
+\begin{itemize}
+\item 電流兆候解析に基づくモーターのオンライン故障検知のハードウェア実装
+\end{itemize}
+
+\section{進捗}
+\label{sec:org16fe99a}
+
+\begin{itemize}
+\item 電流波形を取得し直した
+\begin{itemize}
+\item 故障したモーターは奇数時高調波成分が増加していた
+\end{itemize}
+\item 実装
+\begin{itemize}
+\item ZYBO
+\item PS部でXillinuxを利用
+\end{itemize}
+\item 実装を進めた
+\begin{itemize}
+\item PS: 電流を取得後Duty を計算及び, データを定数倍して固定小数点化を行いPL 部にデータ渡す
+\item PL: FFT を計算
+\item PS: FFT の結果から第一次高調波成分を取得
+\end{itemize}
+
+\item 実験: 上記の実装でDuty, 第一次高周波成分を取得
+\begin{itemize}
+\item 1 負荷なし
+\item 2 負荷あり 
+\begin{itemize}
+\item モータを二つを接着し, 逆回転させることにより一定の負荷を実現
+\item 正確な負荷わからない
+\end{itemize}
+\end{itemize}
+
+\item 散布図を作成 (縦軸: 第一次高周波成分, 横軸: Duty )
+\begin{itemize}
+\item 負荷なし: 故障したモーターは第一次高周波成分が増加
+\item 負荷あり: 故障したモーターは負荷を与えると大幅に高調波成分が減少
+\end{itemize}
+
+\item 負荷をかけたモーターは故障検知できなさそう
+\end{itemize}
+
+\section{今後の課題}
+\label{sec:orgaabb488}
+\begin{itemize}
+\item 閾値関数を作成
+\begin{itemize}
+\item 良いアルゴリズムが見つからない
+\end{itemize}
+\end{itemize}
+\begin{figure}[htbp]
+  \begin{center}
+    \includegraphics[width=100mm]{fft_health.png}
+  \end{center}
+  \caption{正常なモーターの周波数成分}
+\end{figure}
+
+\begin{figure}[htbp]
+  \begin{center}
+    \includegraphics[width=100mm]{fft_fault.png}
+  \end{center}
+  \caption{故障したモーターの周波数成分}
+\end{figure}
+
+\begin{figure}[htbp]
+  \begin{center}
+    \includegraphics[width=100mm]{sanpu.png}
+  \end{center}
+  \caption{負荷なし}
+  \label{fault}
+\end{figure}
+
+\begin{figure}[htbp]
+  \begin{center}
+    \includegraphics[width=100mm]{sanp_load.png}
+  \end{center}
+  \caption{負荷あり}
+  \label{fault}
+\end{figure}
+\end{document}

@@ -1,0 +1,87 @@
+% Intended LaTeX compiler: pdflatex
+\documentclass[column, 10.5pt]{jsarticle}
+\usepackage[dvipdfmx]{graphicx}
+\usepackage{url}
+\usepackage{atbegshi}
+\AtBeginShipoutFirst{\special{pdf:tounicode EUC-UCS2}}
+\usepackage[dvipdfmx,setpagesize=false]{hyperref}
+  \renewcommand \maketitle{}
+\usepackage{boites}
+\usepackage{txfonts}
+\usepackage{bm}
+\usepackage{boxedminipage}
+\usepackage{multicol}
+\usepackage[dvipdfmx]{graphicx}
+\setlength{\topmargin}{-15mm}
+\setlength{\oddsidemargin}{-4mm}
+\setlength{\textwidth}{170mm}
+\setlength{\textheight}{257mm}
+\setlength{\columnsep}{7mm}
+\author{大窄直樹}
+\date{\today}
+\title{}
+\hypersetup{
+ pdfauthor={大窄直樹},
+ pdftitle={},
+ pdfkeywords={},
+ pdfsubject={},
+ pdfcreator={Emacs 26.1 (Org mode 9.0.6)}, 
+ pdflang={Ja}}
+\begin{document}
+
+\makeatletter
+\def\@trivlist{\topsep 2pt \parsep 2pt plus \parskip \partopsep 0pt
+\itemsep 0pt \@topsepadd\topsep \if@noskipsec \leavevmode \fi
+\ifvmode \advance\@topsepadd\partopsep \else \unskip\par\fi
+\if@inlabel \@noparitemtrue \@noparlisttrue \else \@noparlistfalse
+\@topsep\@topsepadd \fi \advance\@topsep \parskip
+\leftskip\z@\rightskip\@rightskip \parfillskip\@flushglue
+\@setpar{\if@newlist\else{\@@par}\fi}%
+\global\@newlisttrue \@outerparskip\parskip}
+\def\section{\@startsection{section}{1}{\z@}%
+{1.75ex plus 0.5ex minus .2ex}{0.75ex plus .2ex}{\normalsize\bf}}
+\def\subsection{\@startsection{subsection}{2}{\z@}%
+{1.5ex plus 0.5ex minus .2ex}{0.5ex plus .2ex}{\normalsize\bf}}
+\def\subsection{\@startsection{subsection}{3}{\z@}%
+{1.0ex plus 0.5ex minus .2ex}{0.5ex plus .2ex}{\normalsize\bf}}
+
+\makeatother
+\pagestyle{empty}
+
+
+
+\begin{flushleft}
+
+\textbf{信学ソ大 大窄直樹}
+\end{flushleft}
+\begin{flushright}
+最終更新 \today\par
+
+\end{flushright}
+
+\section{\bf タイトル案 \mc}
+\label{sec:orgc015db0}
+\begin{itemize}
+\item 電力解析攻撃及び故障利用攻撃に耐性を持つRSA復号回路の高位合成と効率化
+\item Fournarisのアルゴリズムに基づく耐サイドチャネル攻撃RSA復号回路の高位合成と効率化
+\end{itemize}
+
+
+\section{\bf 著者 \mc}
+\label{sec:org6bad872}
+\begin{itemize}
+\item 大窄直樹 (Naoki Osako), 石浦菜岐佐 (Nagisa Ishiura), 神原弘之 (Hiroyuki Kanbara)
+\end{itemize}
+
+\section{\bf 研究の位置づけ (1. 背景; 2. それに対する取り組み; 3. 課題; 4. 本研究) \mc}
+\label{sec:org7756819}
+
+
+\quad 1. IoT向け組込みシステムが増加するにつれ, 暗号のサイドチャネル攻撃の対策をどのようにするか考える必要がある. \par
+\quad 2. [太田2016]は, Fournarisのアルゴリズムに基づき, サイドチャネル攻撃に耐性を持つ\par
+\quad   \quad RSA暗号の復号回路を高位合成により設計する手法を提案.\par
+\quad 3. サイドチャネル攻撃に耐性を持たせることによりRSA暗号の復号回路は, 回路規模, 実行時間が大幅に増加した.\par
+\quad 4. サイドチャネル攻撃に耐性を持つRSA暗号の復号回路の高速化及び回路規模の削減方法を提案.\par
+\quad\quad  - モンゴメリリダクションを利用することにより剰余算の削除が可能になり, 回路規模の削減ができる. \par
+\quad\quad  - 並列化することにより実行時間を短くすることができる.
+

@@ -1,0 +1,63 @@
+\listfiles
+
+\documentclass{jarticle}
+\usepackage{listings}
+\usepackage{color}
+
+\begin{document}
+
+\renewcommand{\lstlistingname}{リスト}
+\lstset{language = Pascal,
+numbers = left,
+numberstyle = {\tiny \emph},
+numbersep = 10pt,
+breaklines = true,
+breakindent = 40pt,
+frame = tlRB,
+frameround = ffft,
+framesep = 3pt,
+rulesep = 1pt,
+rulecolor = {\color{blue}},
+rulesepcolor = {\color{blue}},
+flexiblecolumns = true,
+keepspaces = false,
+basicstyle = \scriptsize,
+identifierstyle = \itshape\scriptsize,
+commentstyle = \fontfamily{ptm}\selectfont\scriptsize,
+stringstyle = \scshape\scriptsize,
+tabsize = 4,
+}
+
+\begin{lstlisting}
+  for i:=maxint to 0 do
+  begin
+      { do nothing }
+  end;
+  Write('Case insensitive ');
+  WritE('Pascal keywords.');
+\end{lstlisting}
+
+\end{document}
+
+ *File List*
+  pldefs.ltx    2000/07/13 v1.2 pLaTeX Kernel (Default settings)
+   jy1mc.fd    1997/01/24 v1.3 KANJI font defines
+   jy1gt.fd    1997/01/24 v1.3 KANJI font defines
+   jt1mc.fd    1997/01/24 v1.3 KANJI font defines
+   jt1gt.fd    1997/01/24 v1.3 KANJI font defines
+ kinsoku.tex
+ plpatch.ltx
+jarticle.cls    2006/06/27 v1.6 Standard pLaTeX class
+ jsize10.clo    2006/06/27 v1.6 Standard pLaTeX file (size option)
+listings.sty    2007/02/22 1.4 (Carsten Heinz)
+  keyval.sty    1999/03/16 v1.13 key=value parser (DPC)
+ lstmisc.sty    2007/02/22 1.4 (Carsten Heinz)
+listings.cfg    2007/02/22 1.4 listings configuration
+   color.sty    2005/11/14 v1.0j Standard LaTeX Color (DPC)
+   color.cfg
+   dvips.def    1999/02/16 v3.0i Driver-dependant file (DPC,SPQR)
+dvipsnam.def    1999/02/16 v3.0i Driver-dependant file (DPC,SPQR)
+lstlang1.sty    2004/09/05 1.3 listings language file
+  ot1ptm.fd    2001/06/04 font definitions for OT1/ptm.
+  omsptm.fd    
+ ***********

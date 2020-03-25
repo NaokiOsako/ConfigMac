@@ -1,0 +1,11 @@
+declare -a array=(9701 9695 9696 9697 9699 9700 9701 9702 9703 9705 9706 9707 9710 9711 9713 9714 9715 9716 9717 9718 9719 9720 9721 9722 9723 9724 9725 9726 9727 9728 9729 7653)
+work=("example03-01-01.py" "example03-02-01.py" "example03-04-01.py" "example03-04-02.py" "example03-05-01.py" "example03-05-02.py" "example03-05-04.py" "example03-06-01.py" "example03-07-01.py" "example03-07-02.py" "example03-07-03.py" "example03-07-03.py" "example03-07-04.py" "example03-07-05.py" "example03-07-06.py" "example03-09-01.py" "ex03-01.py" "ex03-02.py" "ex03-03.py")
+
+for((i = 0; i < ${#array[@]}; i++)) {
+       echo "${array[i]}\n";
+       for((j = 0; j < ${#work[@]}; j++)) {
+	      echo $j;
+	      python3 ./R5/${array[i]}/${work[j]};
+	  }
+   }
+

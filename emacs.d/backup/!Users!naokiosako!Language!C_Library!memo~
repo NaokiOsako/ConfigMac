@@ -1,0 +1,11 @@
+x 以上の個数
+end() - lower_bound(x)
+
+x 以下の個数
+upper_bound(x) - begin()
+
+x 超の個数
+end() - upper_bound(x)
+
+x 未満の個数
+lower_bound(x) - begin()

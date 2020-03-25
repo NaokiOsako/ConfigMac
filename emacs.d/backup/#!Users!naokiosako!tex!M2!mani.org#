@@ -1,0 +1,70 @@
+ #+STARTUP: showall
+
+#+LATEX_HEADER: \renewcommand \maketitle{}
+
+
+#+LANGUAGE: ja
+#+OPTIONS: toc:nil timestamp:nil creator:nil f:nil ^:{}
+#+LATEX_CLASS: jsarticle
+#+LATEX_CLASS_OPTIONS: [a4paper, 10.5pt]
+
+# ---------- package setting ----------
+# #+LATEX_HEADER: \usepackage{txfonts}
+#+LATEX_HEADER: \usepackage{bm}
+#+LATEX_HEADER: \usepackage{multicol}
+#+LATEX_HEADER: \usepackage{dcolumn}
+#+LATEX_HEADER: \usepackage{listings,jlisting} 
+
+# !! #+LATEX_HEADER: \usepackage[dvipdfmx]{graphicx}
+
+# ---------- margin setting ----------
+#+LATEX_HEADER: \setlength{\topmargin}{-20mm}
+#+LATEX_HEADER: \setlength{\oddsidemargin}{-10mm}
+#+LATEX_HEADER: \setlength{\textwidth}{180mm}
+#+LATEX_HEADER: \setlength{\textheight}{260mm}
+#+LATEX: \makeatletter
+#+LATEX: \def\section{\@startsection{section}{1}{\z@}%
+#+LATEX: {1.75ex plus 0.5ex minus .2ex}{0.75ex plus .2ex}{\normalsize\bf}}
+#+LATEX: \def\subsection{\@startsection{subsection}{2}{\z@}%
+#+LATEX: {1.5ex plus 0.5ex minus .2ex}{0.5ex plus .2ex}{\normalsize\bf}}
+#+LATEX: \def\subsection{\@startsection{subsection}{3}{\z@}%
+#+LATEX:{1.0ex plus 0.5ex minus .2ex}{0.5ex plus .2ex}{\normalsize\bf}}
+#+LATEX:\makeatother
+#+LATEX:\renewcommand{\baselinestretch}{0.85}%
+
+
+
+\begin{flushleft}
+
+\textbf{VLD}
+\end{flushleft}
+\begin{flushright}
+大窄直樹
+\end{flushright}
+
+* タイトル案
+  * 電流兆候解析に基づくDCモーターのオンライン故障検知 (◯)
+    * Motor Current Signature Analysis Based On-Line Fault Detection
+      of DC Motor
+    
+* 著者
+  * 大窄直樹, 石浦菜岐佐 (Nagisa Ishiura), 神原弘之 (Hiroyuki Kanbara)
+    
+* 研究の位置づけ (1. 背景; 2. それに対する取り組み; 3. 課題; 4. 本研究) 
+  * 1. モーターは新幹線, 冷蔵庫など幅広く使用され,  その保守運用は従来時間基準保全方式が採用されていたが近年では故障検知を用いた状態保全方式に変わりつつある.
+  * 2. コスト削減のため電流兆候解析による状態保全方式が求められているが, 故障検知のオンライン化及び劣化に応じたモーター制御もまた重要な課題になっている. 
+  * 3. [Shubhasish2016] は処理のハードウェア化による高速化を行い, モーターからの電流信号をオンラインに取得したが, オンライン故障検知を実装するまでには到らなかった.
+  * 4. 本研究では, フーリエ変換のハードウェア化及びプログラマブルSoC実装により電流兆候解析のオンライン化を行う.
+
+* \bf 結果 \mc
+
+\begin{figure}[htbp]
+  \begin{center}
+    \includegraphics[width=150mm]{sanp.png}
+  \end{center}
+  \label{sanp}
+  \caption{実験結果}
+\end{figure}
+
+  * オンラインで劣化及び故障検知を行うことができた.
+  

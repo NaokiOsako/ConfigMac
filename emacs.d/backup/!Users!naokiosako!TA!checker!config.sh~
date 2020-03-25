@@ -1,0 +1,18 @@
+#!/bin/sh
+username="M8305"
+password="271828"
+url="https://ist.ksc.kwansei.ac.jp/~ishiura/cgi-bin/report/main.cgi?S=2019cxa05"
+declare -a array=(9231 9234 9236 9237 9238 9239 9241 9245 9247 9250 9254 9267 9268 9269 9278 9279 9280 9281 9282 9283 9284 9285 9286 9290 9291 9293 9298 9299 9302 9305 9306 9309 9310 9311 9312 7263 5225)
+work1=("E1_comm.xlsx")
+work22=("E2_comm.xlsx" "E2_jinkou.xlsx" "kadai02.xlsx" "E2.txt")
+work2=("P1.ipynb" "P1.txt")
+work3=("P2.ipynb" "P2.txt")
+work4=("P3.ipynb" "P3.txt")
+work5=("P4.ipynb" "P4.txt")
+work7=("P6.ipynb" "P6.txt")
+work8=("P7.ipynb" "P7.txt")
+work9=("P8.ipynb" "P8.txt")
+work10=("P9.ipynb" "P9.txt")
+work11=("P10.txt")
+work12=("P11.txt")
+work13=("P12.ipynb" "P12.txt")

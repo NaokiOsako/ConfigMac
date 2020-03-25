@@ -1,0 +1,10 @@
+n = gets.chomp.to_i
+a = gets.chomp.split.map(&:to_i)
+b = ((a.inject(:+).to_f/n)*10).to_i.around/10
+ans=0
+puts b
+a.each do |i|
+  ans+=(i-b)**2
+end
+puts ans
+

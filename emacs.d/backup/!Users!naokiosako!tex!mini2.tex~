@@ -1,0 +1,121 @@
+% Intended LaTeX compiler: pdflatex
+\documentclass[column, 10.5pt]{jsarticle}
+\usepackage[dvipdfmx]{graphicx}
+\usepackage{url}
+\usepackage{atbegshi}
+\AtBeginShipoutFirst{\special{pdf:tounicode EUC-UCS2}}
+\usepackage[dvipdfmx,setpagesize=false]{hyperref}
+  \renewcommand \maketitle{}
+\usepackage{boites}
+\usepackage{txfonts}
+\usepackage{bm}
+\usepackage{boxedminipage}
+\usepackage{multicol}
+\usepackage[dvipdfmx]{graphicx}
+\setlength{\topmargin}{-15mm}
+\setlength{\oddsidemargin}{-4mm}
+\setlength{\textwidth}{170mm}
+\setlength{\textheight}{257mm}
+\setlength{\columnsep}{7mm}
+\author{n-osako}
+\date{\today}
+\title{}
+\hypersetup{
+ pdfauthor={n-osako},
+ pdftitle={},
+ pdfkeywords={},
+ pdfsubject={},
+ pdfcreator={Emacs 24.5.1 (Org mode 9.0.6)}, 
+ pdflang={Ja}}
+\begin{document}
+
+\makeatletter
+\def\@trivlist{\topsep 2pt \parsep 2pt plus \parskip \partopsep 0pt
+\itemsep 0pt \@topsepadd\topsep \if@noskipsec \leavevmode \fi
+\ifvmode \advance\@topsepadd\partopsep \else \unskip\par\fi
+\if@inlabel \@noparitemtrue \@noparlisttrue \else \@noparlistfalse
+\@topsep\@topsepadd \fi \advance\@topsep \parskip
+\leftskip\z@\rightskip\@rightskip \parfillskip\@flushglue
+\@setpar{\if@newlist\else{\@@par}\fi}%
+\global\@newlisttrue \@outerparskip\parskip}
+\def\section{\@startsection{section}{1}{\z@}%
+{1.75ex plus 0.5ex minus .2ex}{0.75ex plus .2ex}{\normalsize\bf}}
+\def\subsection{\@startsection{subsection}{2}{\z@}%
+{1.5ex plus 0.5ex minus .2ex}{0.5ex plus .2ex}{\normalsize\bf}}
+\def\subsection{\@startsection{subsection}{3}{\z@}%
+{1.0ex plus 0.5ex minus .2ex}{0.5ex plus .2ex}{\normalsize\bf}}
+
+\makeatother
+\pagestyle{empty}
+
+
+
+\begin{flushleft}
+
+\textbf{信学ソ大 大窄直樹}
+\end{flushleft}
+\begin{flushright}
+最終更新 \today\par
+
+\end{flushright}
+
+\section{\bf タイトル案 \mc}
+\label{sec:orgc877aea}
+\begin{itemize}
+\item 高位合成に基づく電力解析攻撃及び故障利用攻撃に耐性を持つRSA復号回路の高速化
+\item 高速化した電力解析攻撃及び故障利用攻撃に耐性を持つRSA復号回路の高位合成
+\item 高位合成に基づく電力解析攻撃及び故障利用攻撃に耐性を持つRSA復号回路の効率化
+\item 効率化した電力解析攻撃及び故障利用攻撃に耐性を持つRSA復号回路の高位合成
+\item 高位合成に基づく電力解析攻撃及び故障利用攻撃に耐性を持つRSA復号回路の回路規模削減
+\end{itemize}
+\section{\bf 著者 \mc}
+\label{sec:org7348b2d}
+\begin{itemize}
+\item 大窄直樹 (Naoki Osako), 石浦菜岐佐 (Nagisa Ishiura), 太田小百合 (Sayuri Ota), 吉田信明 (Nobuaki Yoshida), \par
+\end{itemize}
+神原弘之 (Hiroyuki Kanbara)
+
+\section{\bf 研究の位置づけ (1. 背景; 2. それに対する取り組み; 3. 課題; 4. 本研究) \mc}
+\label{sec:org8cf4b75}
+
+
+\quad 1. IoT向け組込みシステムが増加するにつれ, セキュリティ対策は重要である. \par
+\quad 2. [太田2016]は, Fournarisのアルゴリズムに基づき, サイドチャネル攻撃に耐性を持つ\par
+\quad   \quad RSA暗号の復号回路を高位合成により設計する手法を提案.\par
+\quad 3. サイドチャネル攻撃に耐性を持つRSA暗号の復号回路は, 回路規模, 実行速度が大幅に増加した.\par
+\quad 4. サイドチャネル攻撃に耐性を持つRSA暗号の復号回路の高速化及び回路規模の削減方法を提案.\par
+
+\section{\bf 結果 \mc}
+\label{sec:org92adedd}
+
+\begin{table}[htbp]
+  \begin{center}
+     \caption{cycles結果 keybit 128; (kintex7 XC7K70T)}
+     \begin{tabular}{|c|c|c|}
+       \hline
+              & code & cycles(復号化)\\ \hline
+       変更前 & MIPS & 3,554,185\\ 
+              & HW   & 627,615 \\  \hline
+       変更後 & MIPS & 4,183,457\\ 
+              & HW   & 683,405 \\   \hline
+     \end{tabular}
+   \end{center}
+ \end{table}
+
+
+\begin{table}[htbp]
+  \begin{center}
+     \caption{回路規模結果; (kintex7 XC7K70T)}
+     \begin{tabular}{|c|c|c|c|c|}
+       \hline
+       &code&resisters&LUTs & Delay \\ \hline
+       &MIPS&1,771 &3,180 &  10.473\\ \hline
+       変更前&HW& 2,356 & 16,801 & 12.907\\  \hline
+       変更後&HW & 2,662 & 11,464 & \\   \hline
+     \end{tabular}
+   \end{center}
+ \end{table}
+\begin{itemize}
+\item アルゴリズムの変更前前と変更後の回路規模実行速度を比較した
+\end{itemize}
+\end{document}

@@ -1,0 +1,35 @@
+#include<bits/stdc++.h>
+using namespace std;
+
+
+int main(){
+    int N, K;
+    int R, S, P;
+    string T, tmp="";
+    long long ans=0;
+    cin >> N >> K;
+    cin >> R >> S >> P;
+    cin >> T;
+
+    for(int i=0; i<N; i++){
+	if(i>=K && tmp[i-K]==T[i]){
+	    tmp += "j";
+	    continue;
+	}
+	if(T[i]=='r'){
+	    tmp += "r";
+	    ans += P;
+	}
+	else if(T[i]=='s'){
+	    tmp += "s";
+	    ans += R;
+	}
+	else if(T[i]=='p'){
+	    tmp += "p";
+	    ans += S;
+	}
+    }
+
+    cout << ans << endl;
+}
+

@@ -1,0 +1,1018 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%  石浦研究室 卒論・修論テンプレート 【門外不出】
+%  (最終更新 2017-11-28)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\documentclass[11pt]{jbook}
+\usepackage{ist-thesis}
+\usepackage[dvipdfmx]{graphicx} % 図の挿入
+\usepackage{subfigure}
+\usepackage{url}
+\usepackage{listings}
+
+%\thesistype{B}  % 卒業論文の場合
+\thesistype{M}  % 修士論文の場合
+
+\ID{6301} % 学籍番号 (修論のときは先頭に M を付けるのを忘れないように)
+\author{東 香実} % 著者名
+\supervisor{石浦 菜岐佐 教授} % 指導教員
+\yearmonth{2018年3月}  % 提出年月
+
+% 表紙でタイトルを改行したい場合は \PAR を入れる (内容梗概で改行されない)
+\title{Erlang からの高位合成のための\PAR メモリ分散アーキテクチャ} % 邦題
+
+% 英文のアブストラクトを書かない場合は下記は省略可能
+%\eauthor{Taro Kwangaku} % 英著者名
+%\etitle{English Title English Title\PAR English Title English Title} % 英題
+
+\abstract{
+%本稿では, あらましを書きます. 
+%% 本稿では ＊＊＊ を提案
+本論文では, Erlang からの高位合成のためのメモリ分散アーキテクチャを提案する.
+%% 背景, 課題
+組込みシステムは様々な場面で利用されており, 多種多様なニーズに対応するため, 組込みシステムには並行プロセスや割り込み処理といったより複雑な機能の効率的な実装が求められる. この問題の解決策の一つとして, Erlang 等の並行処理プロセスに基づいたメッセージ処理指向言語によるシステムの制御の記述が挙げられる.
+また, 組込みシステムのリアルタイム性の向上のため, ソフトウェアをハードウェアとして実装する手法があり, ソフトウェアによる仕様記述からハードウェアを自動生成する高位合成技術を利用した設計手法が提案されている.
+竹林らが提案した Erlang サブセットからの高位合成手法では,
+各 Erlang プロセスを並列動作可能なハードウェアモジュールに合成している. 
+しかし, 全てのプロセスモジュールの記憶領域を一つの共有メモリに格納しているため, プロセスモジュールを並列に動作させるためにはその数に比例したメモリポートが必要となってしまう.
+この課題を解決するため本論文では, 各プロセスモジュールがローカルなメモリを保持するアーキテクチャへの合成を提案する. 各プロセスは自身のローカルメモリに対して他のプロセスとは独立にアクセスを行えるため, 全プロセスモジュールが並列に動作可能である. プロセス間のメッセージ送信やガベージコレクションの際には, 他のプロセスモジュールのローカルメモリへのアクセスが必要になるが, ローカルメモリ間の接続の複雑化を避けるため, バスアーキテクチャを採用する. 同時に実行可能なメッセージ送信とガベージコレクションはそれぞれ一つに限定し, その調停はアービタにより行う. 
+提案手法に基づき, 2 プロセスからなる簡単な Erlang プログラムから論理合成可能な Verilog HDL を生成し, レジスタ転送レベルシミュレーションによる動作確認を行った.
+}
+
+\keyword{高位合成, ハードウェア/ソフトウェア協調設計, 組込みシステム, Erlang, ドメイン特化言語}
+
+%\eabstract{
+%First paragraph. First paragraph. First paragraph. 
+%First paragraph. First paragraph. First paragraph. 
+%First paragraph. First paragraph. First paragraph. 
+%First paragraph. First paragraph. First paragraph. 
+%First paragraph. First paragraph. First paragraph. 
+%First paragraph. First paragraph. First paragraph. 
+%
+%Second paragraph. Second paragraph. Second paragraph. 
+%Second paragraph. Second paragraph. Second paragraph. 
+%Second paragraph. Second paragraph. Second paragraph. 
+%Second paragraph. Second paragraph. Second paragraph. 
+%
+%Third paragraph. Third paragraph. Third paragraph. 
+%Third paragraph. Third paragraph. Third paragraph. 
+%}
+%
+%\ekeyword{English, Abstract}
+
+%%% 1 ページ内に図をいっぱい置く用のやつ
+%%% (後から追加)
+%%% いい感じにつけないとバランス崩れる
+\renewcommand\topfraction{0.95}
+%\renewcommand{\floatpagefraction}{0.95}
+\renewcommand{\textfraction}{0.05}
+
+\begin{document}
+\lstset{
+  language=Verilog,
+  basicstyle=\ttfamily,
+  columns=[l]{fullflexible},
+  numbers=left, % numbering
+  breaklines=true, % 文字列折り返し
+  captionpos=b % caption 位置下に
+%  lineskip=-0.5zw, % 行間？
+}
+
+\coverpage
+
+\tableofcontents
+
+\body
+
+\chapter{序論}
+%% \textbf{研究の位置づけ} (1.~背景;  2.~それに対する取り組み; 3.~課題; 4.~本研究)
+
+組込みシステムは, 家電製品, 車載機器, 医療用機器, 産業用機器等, 多岐に渡る製品に内蔵されている. これらの製品に対する多種多様なニーズに対応するため, 組込みシステムには益々高い機能や性能とともに, 小型化や低消費電力化が求められるようになっている. \par
+組込みシステムはソフトウェアおよびハードウェアの組み合わせで実装されるが, 性能と消費電力の両立が厳しい場合にはソフトウェアをハードウェアで実装することにより電力性能比の向上が図られる. システムの効率的な設計手法として, ソフトウェアによる仕様記述からハードウェアを自動生成する高位合成技術 \cite{HLS} を利用した設計手法が提案されている \cite{systembuilder,copro}. \par
+近年の IoT サービスの普及により, 組込みシステムには単体での動作だけでなく, 他のシステムとの連携が求められるようになっている. 多種のイベント入力に対応した複雑な制御の効率的な実装には, 並行プロセスや割り込み処理の記述が必要であり, このようなシステムの仕様記述や効率的な設計手法が今後重要な課題になると考えられる. 
+リアルタイム OS はシステム実装の複雑さを軽減するが, 割り込み処理や排他制御の記述には高度な技術が必要となる. \par
+この問題の解決策の一つとして, Elrang \cite{erlang} 等の並行処理プロセスに基づいたメッセージ処理指向言語によるシステムの制御の記述が挙げられる. Erlang は, 交換機の実装言語として開発されたものであり, 近年では主として大量のメッセージをさばく Web サービスの実装に用いられている \cite{temp1}. その一方で, 並行プロセスとメッセージ通信によってイベント処理が簡潔に記述できるという点に着目し, これを組込みシステムの実装に用いる試みも行われている \cite{temp2}. 
+Erlang によるシステムの記述をハードウェアに合成できれば, 高度化するシステムの機能をより容易に効率的にデバイスに実装することが可能となる. \par
+
+文献 \cite{takebayashi,sasimi} では, Erlang のサブセットからハードウェアを自動合成する手法を提案している. 
+Erlang の 1 プロセスは独立した一つのハードウェアモジュールに合成され, 並列動作が可能である. 
+Erlang のプログラムをコンパイルして得られる仮想マシン BEAM のアセンブリを CDFG (control dataflow graph) に変換し, これを高位合成システム ACAP \cite{acap} のバックエンドに入力して Verilog HDL によるレジスタ転送レベルの設計記述を生成する. メッセージの送受信処理やガベージコレクションの処理は, BEAM インタプリタの C 言語記述を簡略化したものから ACAP で合成する. \par
+
+しかし, この手法では全プロセスの記憶領域を一つのメモリ内に格納するため, プロセスを並列に動作させるためには, プロセス数に比例した数のメモリポートが必要になる. 組込みシステムの実装を考えると, メモリのポート数は 2--3 程度に制限されるため, プロセスの処理を行うモジュール数を増やしても性能向上は見込めない. \par
+
+そこで本論文では, Erlang からの高位合成のためのメモリ分散アーキテクチャを提案する \cite{erlws, azuma}. これは, 各プロセスが独立した記憶領域を所有するアーキテクチャであり, これによって全プロセスが並列に動作することが可能となる. 
+%%%
+メッセージ送信時には他プロセスへのメモリアクセスが発生するが, 任意のプロセス間のメッセージ送信を実現するためには膨大な結合網が必要になる. そこで本論文ではバスアーキテクチャを採用し, 他プロセスへのメモリアクセスはバスを介して行う. バスの衝突を防ぐためプロセス間の同時メッセージ送信は一組のみに制限し, その調停はアービタモジュールにより行う. 
+%%%
+提案手法に基づき, 2 プロセスと 2 ポートからなる簡単な Erlang プログラムから, 論理合成可能な Verilog HDL 記述を生成し, レジスタ転送レベルシミュレーションによる動作確認を行うことができた. \par
+
+%% \begin{enumerate}
+%% \item 組込みシステムの高性能化, 高機能化. IoT サービスの拡大. /Erlang による組込みシステムの実装 \par
+%%   \begin{itemize}
+%%   \item 組込みシステムには益々高い性能とともに小型化, 低消費電力化も求められる. ソフトウェアをハードウェア化することにより電力性能比の向上が図られる. ハードウェアの効率的な設計手法に高位合成がある. \par
+%%   \item また, IoT サービスの拡大により, 他のシステムとの連携が求められるようになっている. 割り込みや排他制御等の記述, 設計が必要になる. \par
+%%   \item 高度な機能を持つシステムの設計手法の一つとして, Erlang 等の並行処理プロセスに基づいたメッセージ処理指向言語を用いてシステムの制御を記述する方法が考えられる. Erlang は, 近年では主として大量のメッセージをさばく Web サービスの実装に用いられているが, これを組込みシステムの実装に用いる試みも行われている. 
+%%   \end{itemize}
+%% \item Erlang からの高位合成 [2016 竹林].  \par
+%%   \begin{itemize}
+%%   \item 1 プロセス 1 ハードウェアモジュールに合成
+%%   \item 
+%%   \end{itemize}
+%% \item メモリ共有アーキテクチャ \par
+%%   \begin{itemize}
+%%   \item 全プロセスの記憶領域は一つのメモリに格納
+%%   \item プロセス並列動作のためにはプロセス数に比例したポートが必要
+%%   \item 組込みシステムのメモリポート数を考えると, プロセスモジュールを増やしても性能向上は見込めない
+%% \end{itemize}
+%% \item Erlang からの高位合成のためのメモリ分散アーキテクチャ \par
+%% \begin{itemize}
+%% \item 各プロセスが独立した記憶領域所有, プロセスの並列動作可能
+%% \item 任意のプロセス間通信の実現には膨大な結合網が必要になるため, バスアーキテクチャを採用
+%% \item バス衝突回避のため send, GC は同時に一組, アービタによる調停
+%% \item Verilog HDL 生成, レジスタ転送レベルシミュレーションによる動作確認
+%% \end{itemize}
+%% \end{enumerate}
+
+
+
+\chapter{Erlang からの高位合成}
+\section{高位合成}
+高位合成は, C 言語等による動作記述から論理合成可能なレジスタ転送レベルのハードウェア記述を自動合成する技術である \cite{HLS}. \par
+図\ref{hls-flow} に一般的な高位合成の流れを示す. まず, 与えられた動作記述に対し, 字句解析と構文解析を行い, 中間表現を生成する. 中間表現には主に CDFG (control dataflow graph) が使用される. CDFG とは, 演算の依存関係を示した DFG (dataflow graph) 間の遷移等の制御情報を追加したものである. CDFG に, 演算の実行のタイミングを決定するスケジューリング, 演算器やレジスタの割り当てを決定するバインディングを行い, レジスタ転送レベル (RTL) の中間表現を生成する. 最後に, RTL 表現から論理合成可能な ハードウェア記述 (HDL: Hardware Description Language) を生成する. \par
+図 \ref{hls-cdfg-ex} (a) の C プログラムに対する CDFG の例を図\ref{hls-cdfg} (b) に示す. DFG1 は図 \ref{hls-cdfg-ex} (a) の 3 行目の文, DFG2 は 6, 7 行目の文, DFG3 は 10, 11 行目の文の計算を表現する DFG である. 図 \ref{hls-cdfg-ex} (a) では 5 行目で分岐が発生しているが, CDFG 中ではこれが DFG1 から DFG2, DFG3 への条件付きの遷移として表されている.
+\begin{figure}%[h]
+  \centering
+  \includegraphics[height=8cm]{images/hls-flow.eps}
+  \vspace{-0.5cm}
+  \caption{高位合成の処理の流れ}
+  \label{hls-flow}
+\end{figure}
+
+%\vspace{0.4cm}
+\begin{figure}%[h]
+\centering
+\begin{minipage}{.70\textwidth}
+  \centering
+\begin{tabular}{|l|} \hline
+ \rule{0em}{7em}
+  \small
+  \renewcommand{\baselinestretch}{0.80}
+  \begin{minipage}[h]{0.4\textwidth}
+    \begin{verbatim}
+01 : int main (void) {
+02 :   int a, b, c, d, e;
+03 :   c = a + b;
+04 : 
+05 :   if (c>0) {
+06 :     d = a + c;
+07 :     e = c * d - b;
+08 :   }
+09 :   else {
+10 :     d = a - c;
+11 :     e = b + c + d;
+12 :   }
+13 : 
+14 :   return 0;
+15 : }    \end{verbatim}
+  \end{minipage} \rule[-7.2em]{0em}{0em} \\ \hline
+\end{tabular}\\
+  \subfigure{(a) C プログラム}
+%  \label{hls-cdfg-ex}
+\end{minipage}\\
+\begin{minipage}{.45\textwidth}
+  \centering
+  \includegraphics[height=7.5cm]{images/cdfg.eps}
+  \subfigure{(b) CDFG}
+%  \label{hls-cdfg}
+\end{minipage}
+\vspace{-0.2cm}
+\caption{CDFG (control dataflow graph) の例}
+  \label{hls-cdfg-ex}
+  \label{hls-cdfg}
+\end{figure}
+
+\section{組込みシステム記述のための Erlang サブセット}
+%% \item 高位合成用言語の変化の兆候 \cite{morioka}
+%%   \begin{itemize}
+%%   \item ソフトウェア用言語の進歩が高位合成を追い越している.
+%%   \item HW 開発向けかつ並列度が高く高粒度のシステムを記述できる言語はあまり無い.
+%%   \end{itemize}
+%% \item Go
+%%   \begin{itemize}
+%%   \item Google, 並列プログラミング, 静的型付け
+%%   \end{itemize}
+%% \item Scala
+%%   \begin{itemize}
+%%   \item オブジェクト指向言語と関数型言語, 静的型付け, Twitter バックエンド, Java VM 上で動作, Java との連携容易
+%%   \item Erlang ライクな文法の軽量プロセス
+%%   \end{itemize}
+%% \item Haskell
+%%   \begin{itemize}
+%%   \item 純粋関数型プログラミング言語, 静的型付け
+%%   \end{itemize}
+%% \item Erlang
+%%   \begin{itemize}
+%%   \item 並行処理指向の関数型言語
+%%   \item 独自のプロセスの生成により並列処理をサポート.
+%%   \end{itemize}
+%\item ()高位合成は, 現在 C 言語から合成を行うことが一般的であるが, ハードウェア開発向けかつ並列度が高く高粒度のシステムを記述できる言語はあまり無い \cite{morioka}. 
+
+%% \par 高位合成用言語の変化の兆候 \cite{morioka}
+%% \begin{itemize}
+%% \item ソフトウェア用言語の進歩が高位合成を追い越している.
+%% \item HW 開発向けかつ並列度が高く高粒度のシステムを記述できる言語はあまり無い.
+%% \end{itemize}
+一般に, 高位合成は C 言語や C 言語をベースに開発された言語を利用することが多いが, 並列度が低く, 回路設計との相性が良くないという課題がある \cite{morioka}. %Java による高位合成は, 並列処理が記述できる点でハードウェアとの相性はいいが, ハードウェア記述言語でのオブジェクト指向等のプログラミング手法を利用するのは難しい.
+%を行うが, ハードウェア開発向けかつ並列度が高く高粒度のシステムを記述できる言語とは言えない. \par
+%・ C は並列度低く, 回路設計との相性が良くない.\par
+%・ Java は並列処理が記述できる点でハードウェアとの相性はいいが, HDL はオブジェクト指向等のプログラミング手法が使えない \par
+% ハードウェアの設計では, 並列度を高く設計することで効率的な処理が可能となり, 副作用がないプログラムからの高位合成により生成されるハードウェア
+%参照透過性が保証されている言語からの高位合成はハードウェアとの相性が良いと考えられる. (?)
+%ハードウェアは並列に動くプロセスが複数存在するのが通常であるので, thread のような機構か, プロセスが並列に結合している構造を表現できる必要もある. (ソフトウェアプログラムからハードウェア記述を合成する高位合成技術 若林一敏 解説論文)
+近年, 組込みシステムの複雑化が進んでおり, 複雑な制御を効率的に実装するために並行プロセスや割り込み処理の記述が必要になってきている. 
+そこで, C 言語など手続き型のプログラミング言語で動作を記述する代わりに, 関数型言語を用いて動作を記述することにより, より並列度が高い動作記述が可能となる. 関数型言語による動作記述をハードウェアとして実装できれば, 並列実行が可能な回路を生成することができる.
+%C 言語などの手続き型で動作を記述する代わりに, 関数型言語を用いて動作を記述することにより, より並列度が高いハードウェアが合成できることが期待される. 関数型言語 Erlang を利用することにより, 並行プロセスを利用したプログラミングが可能である.
+\par
+%%   並列処理に適した言語に, 関数型言語の Haskell, オブジェクト指向言語と関数型言語を組み合わせた Scala, 近年 Google 社が開発している Go 言語がある. これらの言語はオペレーティングシステムが提供するプロセスやスレッドを利用することにより並列処理を可能にする.
+%%  %組込みシステムにおいてマルチコア, マルチスレッドは難しい. 
+%% しかし, 組込みシステムにおいてプロセッサ数には限りがあるため, 上記言語で多数のプロセスによる並列処理を記述しても必ずしも効果的に処理されるとは限らない.
+%% Google 社が開発している Go 言語 (基礎からわかる Go 言語, 古川昇, C\&R 研究所) では, 独立に動作する実行単位 (ゴルーチン) によって並列処理を実現する. Go 言語のランタイムシステムで管理され, 必要に応じてスレッドに割り当てられ実行し, チャネルによる同期型メッセージパッシングを行う. 
+%% Haskell (Haskell による並列・並行プログラミング) では, 並列処理と並行処理をどちらもサポートしている. 並行処理は対話向けプログラミング向けであり, スレッドの生成により並行処理を実現する.
+%% Scala (Scalaスケーラブルプログラミング第 3 版, インプレス社) は, Java VM 上で実行するライブラリを利用することによりアクターモデルによる並行処理を実現する.
+%% %    \item Erlang の並行プログラミング要素の実装をライブラリで定義.
+%% スレッド方式による並行処理では, スレッドはリソースの消費量が少ないため理論上スレッドの方が高いパフォーマンスを実現できるはずであるが, 欠点として, リソース共有のため実装が複雑になることによるバグの発生, リソースをロックすることによるボトルネックが考えられる. OS が提供するスレッドでリソースを共有する協調制御にはセマフォまたは OS レベルのロックが必要になる. (7 つの言語 7 つの世界)
+\par
+並行処理指向の関数型言語 Erlang は, Erlang の実行環境で動作する独自の ``プロセス'' を有する. 動的に生成される複数のプロセスにより並行処理を記述し, プロセス間のデータ共有は, 共有メモリではなく非同期のメッセージ通信により行う. 
+プロセスは軽量であり, 多数のプロセスを生成して大量のメッセージを処理することができる.
+%このため, 組込みシステムの環境に依存せずに性能向上を図ることができる.
+\par
+%% Erlang は並行処理指向の関数型言語であり, 動的に生成される複数のプロセスにより並行処理を記述する. 
+%% プロセス間のデータ共有は, 共有メモリではなく非同期のメッセージ通信により行う. 
+%% プロセスは軽量であり, 多数のプロセスを生成して大量のメッセージを処理することができる. \par
+文献 \cite{takebayashi,sasimi} では, Erlang のサブセットにより組込みシステムの制御を記述し, そこからハードウェアを自動合成する手法を提案している. 
+この手法では, ハードウェアを合成可能とするために, 入力となる Erlang プログラムに次の制限を課している.
+\begin{itemize}
+\item すべてのプロセスはシステムの起動時に生成され, プロセスの動的生成や削除は行わない. 
+\item システムの入出力は Erlang のポートを介して行い, ポートはバイト系列の入出力を行う. 
+\item TCP/IP による外部の Erlang プロセスとの通信は行わない. 
+\item 利用するデータ型は 28 ビットの符号付き整数, およびリストとタプルに限定し, 関数型は扱わない. 
+\end{itemize} \par
+
+Erlang サブセットによって記述した簡単なコントローラの例を図 \ref{fig:roomba_sample1}, \ref{fig:roomba_sample} に示す. このコントローラは, 進行方向を指示するボタン入力があると, それを駆動系への制御信号に変換して出力する. ここでは, このコントローラを図 \ref{fig:roomba_sample1} のように二つのプロセスと二つのポートでモデル化している. port0 はボタンからの入力を受信し, プロセス proc0 に送信する. proc0 は受け取ったデータをプロセス proc1 に転送する. proc1 ではデータの変換を行い, 変換後のデータを proc0 に送信し, 最終的に port1 へ出力する.
+図 \ref{fig:roomba_sample} が Erlang による記述例である. {\tt start} 関数 (4--14 行目) で {\tt proc0}, {\tt proc1}, {\tt Port0}, {\tt Port1} を生成する. {\tt proc0} は関数 {\tt loop0} (19--32 行目) を実行し, 処理する. また {\tt proc1} は関数 {\tt loop1} (34--44 行目) を実行し, 処理する. 
+プロセスへのメッセージ送信は ``{\tt !}'' を利用し記述する. 23 行目では, {\tt proc1} に {\tt \{proc0, data, Data2\}} というメッセージを送信する. メッセージ受信は {\tt receive} を利用しパターンマッチングによる選択受信を行う. 20 行目の {\tt receive} では, メッセージを一番目のパターンである {\tt \{Port0, {data, Data}\}} (21 行目) と照合し, 一致すれば 22--24 行目を評価する. 一致しなければ, 次のパターンである {\tt \{proc1, Data3\}} (25 行目) との照合を行う.
+%{\tt \{Port0, {data, Data}\}}, {\tt \{proc1, Data3\}}, {\tt \{Port1, \_\}}, ``{\tt \_}'' (21, 25, 28, 30 行目) に当てはまればメッセージを受信し処理を行う. ``{\tt \_}'' にはすべてのメッセージのパターンがあてはまる.
+
+\par
+
+\begin{figure}[h]
+  \begin{center}
+    \includegraphics[height=2cm,clip]{images/roomba_flow.eps}\\
+    \caption{記述例のプロセス/ポート間の接続関係 \cite{takebayashi, sasimi} \label{fig:roomba_sample1}}
+  \end{center}
+\end{figure}
+\begin{figure}[]%[h]
+  \begin{center}
+    \begin{footnotesize}
+      \renewcommand{\baselinestretch}{0.70}
+      \begin{tabular}[t]{|l|}\hline\begin{minipage}[t]{0.85\linewidth}
+\begin{verbatim}
+01: -module(roomba).
+02: -export([start/0]).
+03: 
+04: start() ->
+05:   spawn(fun() ->
+06:     register(proc1, self()),
+07:     loop1(0, 0)
+08:   end),
+09:   spawn(fun() ->
+10:     register(proc0, self()),
+11:     Port0 = open_port({spawn, "stdbuf -i0 -o0 -e0 od -h -w8 /dev/input/js0 
+        | ./controller"}, [{packet, 2}]),
+12:     Port1 = open_port({spawn, "./roomba"}, [{packet, 2}]),
+13:     loop0(Port0, Port1)
+14:   end).
+15: 
+16: decode([Dt,Dh,Et,Eh]) -> {((Dh bsl 8) bor Dt), ((Eh bsl 8) bor Et)};
+17: decode(X) -> X.
+18: 
+19: loop0(Port0, Port1) ->
+20:   receive
+21:     {Port0, {data, Data}} ->
+22:       Data2 = decode(Data),
+23:       proc1 ! {proc0, data, Data2},
+24:       loop0(Port0, Port1);
+25:     {proc1, Data3} ->
+26:       Port1 ! {proc0, {command, Data3}},
+27:       loop0(Port0, Port1);
+28:     {Port1, _} ->
+29:       loop0(Port0, Port1);
+30:     _ ->
+31:       loop0(Port0, Port1)
+32:   end.
+33: 
+34: loop1(D, T) ->
+35:   receive
+36:     {proc0, data, Data} ->
+37:       {Drive, Turn} = calc(Data, D, T),
+38:       Cmd = encode(Drive, Turn),
+39:       proc0 ! {proc1, Cmd},
+40:       loop1(Drive, Turn);
+41:     X ->
+42:       proc0 ! X,
+43:       loop1(D, T)
+44:   end.
+45: 
+46: calc({Para, X}, Drive, Turn) ->
+47:   if
+48:     X == 258  -> {Para, Turn};
+49:     X == 1026 -> {Para, Turn};
+50:     X == 2    -> {Drive, Para};
+51:     X == 770  -> {Drive, Para};
+52:     true      -> {0, 0}
+53:   end.
+54: 
+55: encode(Drive, Turn) ->
+56:   if
+57:     Drive =< 57343, Drive >= 32768 ->
+58:       if
+59:         Turn =< 57343, Turn >= 32768 -> {146, 0, 127, 0, 63};
+60:         Turn =< 32767, Turn >= 12288 -> {146, 0, 63, 0, 127};
+61:         true                         -> {146, 0, 127, 0, 127}
+62:       end;
+63:     Drive =< 32767, Drive >= 8192 ->
+64:       if
+65:         Turn =< 57343, Turn >= 32768 -> {146,255,127,255,63};
+66:         Turn =< 32767, Turn >= 12288 -> {146,255,63,255,127};
+67:         true                         -> {146,255,127,255,127}
+68:       end;
+69:     true ->
+70:       if
+71:         Turn =< 57343, Turn >= 32768 -> {146,255,127,0,127};
+72:         Turn =< 32767, Turn >= 12288 -> {146,0,127,255,127};
+73:         true                         -> {146,0,0,0,0}
+74:       end
+75:   end.
+
+\end{verbatim}
+        \end{minipage}\\\hline\end{tabular}
+    \end{footnotesize}\\
+    \caption{Erlang によるコントローラの記述例 \cite{takebayashi,sasimi}}
+    \label{fig:roomba_sample}
+  \end{center}
+\end{figure}
+
+\section{Erlang の実行系}
+Erlang のプログラムは, BEAM と呼ばれる仮想マシンのバイトコードにコンパイルされ, インタプリタで実行される. BEAM は, 1024 ワードの x レジスタ, 実行中の BEAM 命令の番地を保持する PC レジスタ, 関数の戻り番地を保持する CP レジスタ, およびスタックポインタ SP を持つ. プロセスの実行で必要になるデータのうち, x レジスタに格納できないリストやタプルのデータは, プロセス毎に用意される独立した記憶領域の先頭から格納され (ヒープ), 関数のフレームデータはその記憶領域の末尾から格納される (スタック). 
+プロセスの記憶領域が不足するとガベージコレクションが行われ, 不足量に応じて記憶領域の拡張が行われる. BEAM インタプリタは C 言語で実装されている. ガベージコレクションはプロセス毎に実行できる. \par
+各プロセスは線形リストで実装される一つのメッセージキューを持ち, プロセス宛に送られたメッセージはこのキューの末尾につながれる. 
+プロセス P0 から P1 へのメッセージ送信の処理の流れを図 \ref{fig:sendrecv} に示す. 
+P0 で send 命令が実行されると, x[0] に格納されている宛先にメッセージ x[1] をコピーする. このとき, x[1] の値は P1 のメッセージキューにつながれる. 
+メッセージが付随データを所有しヒープ中のデータを参照している場合は, ヒープデータのコピーが必要になる. このコピーは送信側から受信側の記憶領域に直接行うのではなく, メッセージにミニヒープを割り当てて一旦そこにコピーし, メッセージ受信時に受信側が自身の記憶領域にコピーする. 
+プロセスは, 現在参照している「カレントメッセージ」へのポインタを持っており, receive 命令を実行するとメッセージ受信時にカレントメッセージが x[0] にコピーされ, 付随データがあればヒープにコピーされる. 
+パターンマッチが成功すると, カレントメッセージはキューから削除される. 
+パターンマッチが成功しなかった場合は, カレントメッセージのポインタが一つ進められ, 次のメッセージの読み込みとパターンマッチが試みられる. 
+\par
+
+\begin{figure}[h]
+\begin{center}
+\includegraphics[height=7.0cm]{images/sendrecv.eps}
+\caption{send/receive 命令}
+\label{fig:sendrecv}
+\end{center}
+\end{figure}
+
+
+\section{Erlang からの高位合成の流れ}
+文献 \cite{takebayashi,sasimi} の Erlang からの高位合成の流れは図 \ref{fig:erl-hls-flow} の通りである. 
+Erlang コンパイラ erlc で Erlang のプログラムから BEAM のアセンブリコードを生成し, ここから CDFG を生成する. 
+これを高位合成システム ACAP \cite{acap} のバックエンドに入力して Verilog HDL を得る. 
+\par
+Erlang の各プロセスは一つのハードウェアモジュールに合成する.
+各関数はラベル, 分岐命令に基づき基本ブロックに分割し, 基本ブロック中の各 BEAM 命令を演算に変換することにより DFG を構築する. 
+例えば, 加算命令は図 \ref{fig:instr2opr} (a) のような DFG の演算に変換する. 32 ビットレジスタの中に 28 ビットデータと 4 ビットのタグがともに格納されているため, タグに関する操作のための演算を追加する.
+リストの操作はロード/ストア演算に変換する. リストの先頭要素と次要素を取り出す get\_list 命令は図 \ref{fig:instr2opr} (b) のような DFG の演算に変換する. x[0] には 32 ビットアドレスにリストを表す b'01 を加算した値を格納しているため, ロード演算の前にタグに関する操作を行う DFG を生成する.
+%% 例えば, 算術演算, ビット演算は組込み関数を実行する BEAM 命令にコンパイルされており, それを図 \ref{fig:instr2opr} (a) のような DFG の演算に変換する. 28 ビットデータは, 下位 4 ビットのタグとともに 32 ビットのレジスタに格納されているため, これらのデータに対する演算は, データの上位 28 ビットを操作する演算系列に変換する. 
+%% リストやタプルの操作はヒープに対するロード/ストア演算に変換する. リスト x[0] (上位 30 ビットがリストの先頭要素のアドレスで, 下位 2 ビットが b'01) の先頭要素のデータ (car) を x[1] に, 次要素 (cdr) を x[2] に格納する命令では, 図 \ref{fig:instr2opr} (b) のようにヒープからのロードを行う DFG に変換する. 
+\par
+
+BEAM 命令の中には, メッセージの送受信, ガベージコレクション等, DFG が大規模になるものが存在する. 
+これらの処理は, 別途独立したハードウェア (以下, ライブラリモジュールと呼ぶ) として実装し, プロセスを実行するハードウェアからサブルーチンのように呼び出せるようにする. 
+ライブラリモジュールは, C言語で実装された BEAM インタプリタを縮約したものから ACAP で合成する. \par
+なお, 高位合成系は ACAP に限定されないが, C 言語が処理できることと, バックエンドに CDFG が入力できることが必要になる.
+\par
+
+\begin{figure}[h]
+\begin{center}
+\includegraphics[height=5cm]{images/erl-hls-flow.eps}
+\caption{Erlang からの高位合成の流れ \cite{takebayashi,sasimi}}
+\label{fig:erl-hls-flow}
+\end{center}
+\end{figure}
+
+
+\begin{figure}[h]
+\begin{small}
+\begin{center}
+
+\begin{tabular}{cc}
+{\begin{tabular}[t]{@{}c@{}}{\includegraphics[width=3cm]{images/instr2opr-add.eps}}\\
+(a) 加算\end{tabular}} \hspace{1.2cm}
+&
+{\begin{tabular}[t]{@{}c@{}}{\includegraphics[width=3cm]{images/instr2opr-get_list.eps}}\\
+(b) get\_list\end{tabular}}
+%&
+%\CT{\includegraphics[scale=0.40]{images/instr2opr-is_nonempty_list.eps}\\
+%(c) is\_nonempty\_list}
+\\
+\end{tabular}
+
+\caption{BEAM の命令からデータフローグラフへの変換例 \cite{takebayashi,sasimi}}
+\label{fig:instr2opr}
+\end{center}
+\end{small}
+\end{figure}
+
+\section{ライブラリモジュール}
+文献 \cite{takebayashi, sasimi} の手法では, ライブラリモジュールは各プロセスおよびポートに対して一つずつ設け, 記憶領域の操作やメッセージの送受信等の複雑な処理を実行している. ライブラリモジュールが実行する機能は以下の 7 つである. \par
+\begin{enumerate}
+\item test\_heap \par
+  ヒープに要求されたワード分の領域を確保する. プロセスの記憶領域に空きがなければガベージコレクションを行う. \par
+\item allocate \par
+  スタック領域を要求されたワード分増やす. 記憶領域に空きがなければガベージコレクションを行う. \par
+\item send \par
+%%  プロセスまたはポート x[0] にメッセージ x[1] を送信する. \par
+  メッセージ x[1] を x[0] に格納されている宛先にコピーする. 宛先がプロセスであればメッセージキューへ, ポートであればバッファへコピーする. \par
+\item receive \par
+  カレントメッセージをキューから x[0] にコピーし, メッセージに付随データがあればそれをプロセスのヒープにコピーする. ヒープに十分な空きがなければその前にガベージコレクションを行う. \par
+\item remove\_message \par
+  カレントメッセージをキューから削除する. \par
+\item save\_message \par
+  カレントメッセージポインタを一つ進める. \par
+\item wait\_timeout \par
+  新しいメッセージを待つ. 新しいメッセージが到着すれば待ち状態を解除する. 指定時間以内に新しいメッセージが来なかった場合も待ち状態を解除する. \par
+\end{enumerate}
+
+ライブラリモジュールは制御変数によってプロセスモジュールから制御される. プロセス $i$ のライブラリモジュールの制御変数を RUN\_$i$ とすると, RUN\_$i$ が 0 のときはライブラリモジュールは待機状態にある. プロセスモジュールが RUN\_$i$ に要望する機能の番号を書き込むことによって, ライブラリモジュールは起動し, その処理を行う. 処理が終わると, ライブラリモジュールは RUN\_$i$ をリセットして待機状態に戻り, プロセスモジュールは続きの処理を行う. \par
+ライブラリモジュールの C プログラム (図 \ref{fig:erl-hls-flow} 中の \textcircled{\small B}) は Erlang OTP 18.1.3 の BEAM インタプリタのソースコードを縮約したものである. メッセージキューに関する処理とヒープのコピーに関する処理は BEAM コードを基に, 不要なコードを削除し, 動的割り当てを静的割り当てに変更している. ガベージコレクションは二つの動的領域のマーク・アンド・スイープ方式を二つの静的領域割り当てを使う簡単な方法に変更している. プロセスを管理するためのデータ構造やメッセージの送受信処理は新たに実装している. ライブラリモジュールの Verilog HDL 記述はこれらの C プログラムから高位合成により得ている. \par
+
+\section{課題}
+文献 \cite{takebayashi,sasimi} の手法で合成されるハードウェアは, 図 \ref{fig:hwconf-old} に示すように, 一つの共有メモリ内にすべての Erlang プロセスの記憶領域を格納している. この構成で本論文で想定する Erlang プロセスの数は 10 程度であるが, 組込みシステムで利用できるメモリのポート数を考えれば非現実的である.
+メモリのポート数が増加すると, 複数のポートが同じタイミングで同一アドレス内の値を書き換えることができてしまい, 意図しない挙動が発生する可能性がある. 同一のアクセスを防ぐためには別途制御が必要となり, ハードウェアコストが増大してしまう.
+このため, 通常はメモリのポート数を削減することにより調停を行う. しかし, ポート数を削減するとプロセス毎の並列動作が実現できない.
+\par
+また, ハードウェアサイズが大きすぎることも課題としてあげられる. 特に, 高位合成で生成されるライブラリモジュールのサイズが非常に大きくなる. 中でも, ガベージコレクションの処理にコストがかかっている.\par 
+
+\begin{figure}[h]
+\begin{center}
+\includegraphics[height=4cm]{images/hwconf-old.eps}
+\caption{メモリ共有アーキテクチャ}
+\label{fig:hwconf-old}
+\end{center}
+\end{figure}
+
+
+\chapter{メモリ分散アーキテクチャ}
+\section{概要}
+前章で述べた課題に対し, 本論文ではメモリ分散アーキテクチャを提案する \cite{erlws, azuma}. 
+Erlang のプロセスは, メッセージ送信時以外は各自のメモリしかアクセスしないため, プロセスモジュール毎にローカルなメモリを持たせるのが理にかなっている. ただし, その場合でも, 任意のプロセス間のメッセージ送信を実現するためには膨大な結合網が必要になる. そこで本論文では, 従来手法の図 \ref{fig:hwconf-new} (a) のアーキテクチャからメモリを分割しバスを利用した図 \ref{fig:hwconf-new} (b) に示す以下のようなバス結合型のハードウェア構成を採用する. \par
+\vspace{1.5em}
+\begin{figure}[h]
+  \centering
+  \begin{minipage}{.70\textwidth}
+    \begin{center}
+      \includegraphics[height=4cm]{images/hwconf-old.eps}
+      \subfigure{(a) メモリ共有アーキテクチャ}
+    \end{center}
+  \end{minipage}\\
+  \vspace{1.0em}
+  \begin{minipage}{.70\textwidth}
+    \begin{center}
+      \includegraphics[height=5.5cm]{images/hwconf-new.eps}
+      \subfigure{(b) メモリ分散アーキテクチャ}
+    \end{center}
+  \end{minipage}
+  \caption{Erlang からの高位合成で生成するアーキテクチャ}
+  \label{fig:hwconf-new}
+\end{figure}
+\newpage
+\begin{enumerate}
+\item メモリ分散アーキテクチャ \par
+本手法では, 各プロセス, ライブラリモジュール (P$i$, L$i$) はプロセス毎に独立したローカルなメモリを所有する. そのメモリはさらにヒープ/スタック用の領域 (H$i$) とメッセージキュー/ミニヒープ用の領域 (Q$i$) に分割される. H$i$ と Q$i$ のメモリポートは一つだけで良い. メッセージ通信やガベージコレクション実行中の場合を除き, すべての P$i$ と L$i$ は並列にメモリにアクセスできる. \par
+\item ガベージコレクションモジュールの共用 \par
+本論文では, 文献 \cite{hamana} の手法に基づき, ガベージコレクション機能をライブラリモジュールから独立させたガベージコレクションモジュール (GC) を利用する. % from 2.3
+ガベージコレクションを同時に実行できるのは一つのプロセスのみと制限することにより, すべてのプロセスで一つの GC を共有して, 回路規模削減を図る. \par
+\item 2 バス構成 \par
+他プロセスのローカルメモリへのアクセスは, Q-bus, H-bus という二本のバスを介して行う. Q-bus は Q$i$ へのアクセスを提供し, メッセージ送信に使用する. H-bus は H$i$ へのアクセスを提供し, ガベージコレクションに使用する. バス使用の衝突を避けるため, メッセージ送信とガベージコレクションはそれぞれシステム中で一組のみ同時に実行できると制限する.  \par
+\item アービタ \par
+アービタモジュール (arbiter) がライブラリモジュールからメッセージ送信とガベージコレクションのリクエストを受け, これらを優先度に基づいて調停する. \par
+\end{enumerate}
+\section{メモリ分散とバスモジュール}
+モジュール内部にはアドレスバスとデータバスを所有し, 各プロセスモジュール, ライブラリモジュール, メモリ領域ごとにポートを所有する.
+本システムは, 以下のように動作する. \par
+
+\begin{enumerate}
+\item ローカル記憶への並列アクセス \par
+各プロセスモジュール P$i$ は自身のワーキングメモリ H$i$ にアクセス可能である. 図 \ref{fig:parallel} (a) では, P0 と P1 はそれぞれ H0 と H1 に同時にアクセスしてローカルな計算を並列に実行している. 各ライブラリモジュール L$i$ はメッセージキュー Q$i$ と H$i$ にアクセス可能である. L2, L3 は receive 命令を処理しているが, receive 命令は各自のメッセージキューとワーキングメモリにのみアクセスし処理を行うため, P0, P1 のローカルな計算と並列に実行できる. \par
+
+\item メッセージ送信 \par
+P$i$ から P$j$ にメッセージを送るとき, L$i$ は H$i$ からメッセージに関連するデータを読み, 送信先の Q$j$ に書き込みを行う. このとき, データは Q-bus を介して送信する. 図 \ref{fig:parallel} (b) は, P2 から P1 へのメッセージ送信を表している. L2 は H2 内のデータを読み, 送信先のメッセージキューがある Q1 に書き込みを行う. この間も, P0 と P3 のローカルな計算は並列に処理が可能である. さらに, P1 は Q1 にアクセスしなければローカルな処理を同時に実行することができる. \par
+
+\item ガベージコレクション \par
+P$i$ がガベージコレクションをリクエストすると, ガベージコレクションモジュールが H-bus を通して H$i$ のガベージコレクションを行う. 図 \ref{fig:parallel} (c) では, GC が H1 のガベージコレクションを行っている. このとき, P1 以外のプロセスは同時に処理を行うことができる. また, P2 から P1 のメッセージ送信も可能である. \par
+\end{enumerate}
+
+本手法では, システム全体に一つの 32 ビットアドレス空間を割り当て, 各 H$i$ や Q$i$ はアドレス空間のセグメントに配置する. アドレスの下位 $m$ ビットはローカルメモリのアドレス, 上位 $32-(m+1)$ ビットはセグメント番号を表すものとし, 他のプロセスのメモリへのアクセスはバスモジュールが担当する. \par
+
+本システムで採用するバスモジュールの構成を 図 \ref{fig:bus1} に示す. 
+L$i$ から Q-bus モジュールを介した Q$i$ と Q$j$ ($j\ne i$) への read アクセスは以下のように扱う. \par
+
+\begin{itemize}
+\item L$i$ からアクセスがあり, アドレスのセグメント番号が $i$ のとき, Q$i$ にアドレスの下位 $m$ ビットを送り, 読み出されたデータを L$i$ に返す. 
+\item L$i$ からアクセスがあり, アドレスのセグメント番号が $j$ のとき, リクエストはアドレスバスに流され, Q$j$ からのデータが L$i$ に返される. 
+\item Q-bus にセグメント番号が $i$ のアクセスが流されると, リクエストは Q$i$ が受け取り, Q$i$ の読み出し結果はデータバスに流される.
+\end{itemize}
+
+二つのライブラリモジュールが Q-bus に同時にアクセスすることはなく, さらに, L$i$ と L$j$ が同時に Q$i$ にアクセスすることはない. これらはアービタの調停により保証されている. \par
+
+H$i$ へのアクセスも H-bus モジュールを利用し Q$i$ と同様の方法で処理される. \par
+
+\begin{figure}[]
+\begin{small}
+\begin{center}
+\includegraphics[height=5.5cm]{images/hwconf-LLRR.eps}\\
+(a) ローカルな計算\\[1.2em]
+\includegraphics[height=5.5cm]{images/hwconf-LLSR.eps}\\
+(b) メッセージ送信命令\\[1.2em]
+\includegraphics[height=5.5cm]{images/hwconf-LGSR.eps}\\
+(c) ガベージコレクション命令
+\caption{メモリ分散アーキテクチャの動作例}
+\label{fig:parallel}
+\end{center}
+\end{small}
+\end{figure}
+
+\begin{figure}[]
+  \begin{center}
+    \includegraphics[height=5.1cm]{images/bus.eps}
+    \caption{バスモジュール}
+    \label{fig:bus1}
+  \end{center}
+\end{figure}
+
+\section{アービタ} \label{sec:arb}
+アービタモジュールは, プロセスから送られるメッセージ送信リクエストとガベージコレクションリクエストの調停を行う. 複数のリクエストが同時に来たときには, 優先度に従って実行許可を与えるリクエストを決定する. メッセージ送信やガベージコレクションの処理中に新しいリクエストが来たときは, 現在の処理が終わってから新しいリクエストを含む待機中のリクエストの中で最も優先順位が高いものに実行許可を与える. \par
+
+ガベージコレクションリクエストの処理手順は以下の通りである. \par
+
+\begin{enumerate}
+\item ライブラリモジュール L$i$ がガベージコレクションリクエストを送信するには, ガベージコレクションリクエスト信号 GC\_req${}_i$ を 1 にする. \par
+\item GC\_req${}_i$ が 1 になると, アービタが GC\_req を 1 にし, リクエスト元のプロセス番号を表す GC\_process を $i$ にすることによりガベージコレクションモジュール GC に実行リクエストを通知する. 複数プロセスから同時にリクエストが来た場合には, 優先度に応じてそのうちの一つを選択する. \par
+\item GC は H$i$ に対してガベージコレクションを実行する. 処理が終了したら GC\_req を 0 にする. \par
+\item アービタは GC\_req が 0 であることを確認したら GC\_req${}_i$ を 0 にすることにより L$i$ に処理終了を通知する. \par
+\item L$i$ は GC\_req${}_i$ が 0 であると確認でき次第, 続きの処理を行う. \par
+\end{enumerate}
+
+メッセージ送信リクエストの処理は, 送信先プロセスがメッセージキューに対する処理を行っているときにはキューへのつなぎ込み (エンキュー) ができないため, ガベージコレクションリクエストの処理より少し煩雑になる. メッセージ送信リクエストの処理を行うアービタモジュールの構成を図 \ref{fig:arbiter} に示す. メッセージ送信リクエストの処理手順は以下の通りである. \par
+\begin{enumerate}
+\item L$i$ はメッセージ送信リクエスト信号である send\_req${}_i$ に 1, 送信先の宛先を表す信号である send\_to$_i$ に $j$ を書き込むことにより, プロセス $j$ へのメッセージ送信リクエストを送信する. \par
+\item アービタはプロセス $j$ に対し, エンキューリクエスト信号 enq\_req${}_j$ を1 にし, エンキューリクエストを送る. このとき複数のメッセージ送信リクエストがあれば優先度に従って一つを選択する. \par
+\item プロセス $j$ が receive, remove\_message, save\_message を実行していればその完了を待って, していなければ直ちに, 新しいメッセージのキューへのつなぎこみを許可するため enq\_ready${}_j$ に 1 を書き込む. \par
+\item アービタは send\_ready${}_i$ を 1 にすることにより L$i$ にメッセージ送信許可を与える. \par
+\item L$i$ は send\_ready${}_i$ が 1 であると確認でき次第, データを Q$j$ に送信する. \par
+\item L$i$ の処理が終了したら send\_req${}_i$ を 0 にし, リクエストを取り下げる. \par
+\item アービタは send\_req${}_i$ が 0 であると確認でき次第, enq\_req$_j$ を 0 にする. \par
+\end{enumerate}
+ただし, L$j$ は send リクエストの許可を待ってる間にもエンキューのリクエストを許可できるように設計する必要がある. \par
+
+\begin{figure}[h]
+  \begin{center}
+    \includegraphics[height=4.0cm]{images/arbiter.eps}
+    \caption{アービタモジュール}
+    \label{fig:arbiter}
+  \end{center}
+\end{figure}
+
+\section{I/O モジュール}
+GC\_req${}_i$ や enq\_ready${}_j$ 等の信号はアドレス空間内に配置し, メモリマップト I/O によって, 各プロセス, ライブラリ, ガベージコレクションモジュールからアクセスできるようにする. このアクセスを制御するのが I/O モジュールである. 図 \ref{fig:hwconf-new} のメモリ分散アーキテクチャに I/O モジュールを追加したハードウェア構成を図 \ref{fig:hwconf-with-io} に示す. P$_i$, L$_i$, GC は I/O モジュールを介してバスに接続する. L$i$ からのアクセスが H$i$ へのアクセスか Q$i$ へのアクセスかは入力されたアドレスの $m$ ビット目の値によって I/O モジュールが判断し, 出力先を切り替える. 
+また, ライブラリモジュールとアービタモジュールとの通信は I/O モジュールを介して行うため, I/O モジュールはアービタモジュールとも接続する. \par
+I/O モジュールは内部に複数の 32 ビットレジスタを所有し, 各レジスタがライブラリモジュールの制御変数, メッセージ送信に関する変数, エンキュー処理に関する変数, ガベージコレクション処理に関する変数に対応する. 各モジュールからこれらの変数に対するアクセスがあれば, アクセスをバスに流さずに内部レジスタへのアクセスに変換する. \par
+\begin{itemize}
+\item run レジスタ \par
+  P$_i$, L$_i$ からライブラリモジュールの制御変数 RUN\_$i$ へのアクセスは I/O モジュールが有する run レジスタへのアクセスへと変換する. 例えば, P$_i$ が L$_i$ に処理を要望する場合には, P$_i$ から H$_i$ の RUN\_$i$ のアドレスへの write のアクセスが発生するが, 実際には H$_i$ には書き込まずに run レジスタに書き込みを行う.
+\item send レジスタ \par
+  L$_i$, アービタモジュールからメッセージ送信に関する変数へのアクセスは I/O モジュールが有する send レジスタへのアクセスに変換する. メッセージ送信に関する変数は send\_req${}_i$, send\_to$_i$, send\_ready${}_i$ を 1 ワードで表現するものとする.
+\item enqueue レジスタ \par
+  L$_i$, アービタモジュールからエンキューに関する変数へのアクセスは I/O モジュールが有する enqueue レジスタへのアクセスに変換する. エンキューに関する変数は enq\_ready${}_i$, enq\_req$_i$ の二つであり, 各変数へのアクセスがあれば enqueue レジスタへのアクセスに変換する. これらの変数は 1 ビットのデータ幅のみが必要であるため, 例えば最上位ビット目を enq\_req$_i$, (最上位--1) ビット目を enq\_ready${}_i$ とすれば良い.
+\item gc レジスタ \par
+  L$_i$, GC, アービタモジュールからガベージコレクションに関する変数へのアクセスは I/O モジュールが有する gc レジスタへのアクセスに変換する. ガベージコレクションに関する変数は, L$i$ が利用する GC\_req${}_i$, GC が利用する GC\_req, GC\_process がある. アービタモジュールはすべて利用する. GC\_req, GC\_process は 1 ワードで表現するものとする.
+\end{itemize}
+
+%% \begin{itemize}
+%% \item I/O モジュールは内部に run 変数, send 変数, enqueue 変数, gc 変数に対応するレジスタを所有する.
+%% \item run レジスタはプロセスモジュールとライブラリモジュールが共有する. プロセスモジュールがライブラリモジュールに仕事を依頼するときに利用する.
+%% \item send, enqueue, gc レジスタはライブラリモジュールとアービタモジュールが共有する. 前節の GC\_req$_i$ は P$_i$ の I/O モジュール内の gc レジスタである. send\_req$_i$ は send レジスタ, enq\_req$_i$ は enqueue レジスタである.
+%% \item P$_i$ からの入力は, run 変数へのアクセスであれば run レジスタへアクセスし, それ以外はバスへの出力とする.
+%% \item L$_i$ からの入力は, run, send, enqueue, gc 変数へのアクセスは各レジスタへのアクセスとし, それ以外はバスへの出力とする.
+%% \item アービタからの入力は send, enqueue, gc レジスタのいずれかへのアクセスとなる.
+%% \end{itemize}
+
+\begin{figure}[t]
+\begin{center}
+\includegraphics[height=6.5cm]{images/hwconf-full.eps}
+\caption{I/O モジュールを含むハードウェアの構成}
+\label{fig:hwconf-with-io}
+\end{center}
+\end{figure}
+
+
+\chapter{実装と実験結果}
+\section{実装}
+提案手法に基づき高位合成系のプロトタイプを実装した. 処理系は Ubuntu Linux と Mac OS X 上で動作する. BEAM アセンブリから CDFG を生成する処理系 (図 \ref{fig:erl-hls-flow} 中の \textcircled{\small A}) は Perl5 で実装し, CDFG  内の命令は ACAP の 32 ビット演算器を想定している. \par
+
+\subsection{メモリレイアウト}
+本システムのメモリレイアウトを図 \ref{fig:membank} に示す. H$_i$ はプロセス $i$ のヒープ/スタック領域, Q$_i$ はメッセージキュー/ミニヒープ領域であり, 2048 ビットのセグメントに分割した. 32 ビットのメモリ空間をバンク分けすることにより各プロセスが独立にアクセスすることができる. 32 ビットアドレスのうち, 下位 12 ビットはローカルメモリのアドレス, 上位 19 ビットをセグメント番号に割り当て, 12 ビット目を H$_i$, Q$_i$ を判別するビットとする.
+%%\begin{itemize}
+%% \item buffer, beap, queue: 2048 bit
+%% \item ポートのメモリ: 2048 bit
+%% \item プロセスのメモリ: 4096 bit
+%% \item テストベンチ内で 2 ポートのメモリ用レジスタを 5 個用意.
+%% \item ローカル変数の話する・・・？
+%% \end{itemize}
+\begin{figure}[h]
+  \begin{center}
+    \includegraphics[height=6cm]{images/memorybank.eps}
+    \caption{メモリレイアウト}
+    \label{fig:membank}
+  \end{center}
+\end{figure}
+
+\subsection{I/O モジュール}
+I/O モジュールを Verilog HDL で設計した. I/O モジュールの構造を図 \ref{fig:io} に示す. 矢印はポートである. 
+%ポート名の先頭の ``i'', ``o'' はそれぞれ入力ポートと出力ポートを表す. 
+表 \ref{tab:io} にポート名と役割を示す. ``width'' はポートのデータ幅を表す. {\tt X} には, プロセスモジュール PM, ライブラリモジュール LM, H-bus を表す HB, Q-bus を表す QB が当てはまる.
+%PM はプロセスモジュール P$_i$, LM はライブラリモジュール L$_i$, HB は H-bus, QB は Q-bus, A はアービタモジュールを表す. iPM から始まるポートは P$_i$ から I/O モジュールへの入力ポートを表し, oPM から始まるポートは I/O モジュールから P$_i$ への出力ポートを意味する. ``\_'' 以降につながる ADDR は 32 ビットのアドレス, DATA は 32 ビットのデータを表す. RE は 1 ビットの read enable 信号, WE は 1 ビットの write enable 信号である. BE は 4 ビットの byte enable 信号, STALL は 1 ビットの stall 信号である. 
+%アービタモジュールからの入力である iA\_EREQ はエンキューリクエスト信号, iA\_SRDY は送信先プロセスがエンキュー可能かを表す信号, iA\_GDN はガベージコレクションモジュール GC がガベージコレクションの処理を終了したかを知らせる信号であり, すべて 32 ビットである. アービタモジュールへの出力である oA\_SREQ はメッセージ送信リクエスト信号, oA\_ERDY はエンキューの準備ができたかを表す信号, oA\_GREQ はガベージコレクションリクエスト信号を表し, すべて 32 ビットである. 
+iA\_SRDY, oA\_SREQ は I/O モジュール内の send レジスタに, iA\_EREQ, oA\_ERDY は enqueue レジスタに, iA\_GDN, oA\_GREQ は gc レジスタにそれぞれつながっている. 
+アービタモジュールには enable 信号のポートがないため, メッセージ内に埋め込み,  
+I/O モジュール内部に有する run, send, enqueue, gc レジスタへの書き込みが重複して発生しないように設計した.\par
+iLM\_ADDR の 12 ビット目を H-bus, Q-bus の判別ビットとし, 0 であれば oHB ポートに iLM ポートのデータを出力し, 1 であれば oQB ポートに iLM ポートのデータを出力する.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[height=5.8cm]{images/port_io.eps}
+  \vspace{-1.5em}
+  \caption{I/O モジュール}
+  \label{fig:io}
+\end{figure}
+\vspace{-2em}
+\begin{table}[h]
+  \centering
+  \caption{I/O モジュールのポートと役割 \label{tab:io}}
+  \vspace{0.4em}
+%  \renewcommand{\arraystretch}{0.97}
+  \begin{small}
+  \begin{tabular}{|l|r|l|} \hline
+    ポート名      & width & 役割 \\ \hline
+    i{\tt X}\_ADDR  & 32 & モジュール {\tt X} からのアドレス入力 \\
+    i{\tt X}\_DATA  & 32 & モジュール {\tt X} からのデータ入力 \\
+    i{\tt X}\_RE    &  1 & モジュール {\tt X} からの read enable 信号入力 \\
+    i{\tt X}\_WE    &  1 & モジュール {\tt X} からの write enable 信号入力 \\
+    i{\tt X}\_BE    &  4 & モジュール {\tt X} からの byte enable 信号入力 \\
+    i{\tt X}\_STALL &  1 & モジュール {\tt X} からの stall 信号入力 \\
+    iA\_EREQ        & 32 & アービタモジュールからのエンキューリクエスト信号入力 \\
+    iA\_SRDY        & 32 & アービタモジュールからのメッセージ送信許可信号入力\\
+    iA\_GDN         & 32 & アービタモジュールからのガベージコレクション終了信号入力\\
+    \hline
+    o{\tt X}\_ADDR  & 32 & モジュール {\tt X} へのアドレス出力 \\
+    o{\tt X}\_DATA  & 32 & モジュール {\tt X} へのデータ出力 \\
+    o{\tt X}\_RE    &  1 & モジュール {\tt X} への read enable 信号出力 \\
+    o{\tt X}\_WE    &  1 & モジュール {\tt X} への write enable 信号出力 \\
+    o{\tt X}\_BE    &  4 & モジュール {\tt X} への byte enable 信号出力 \\
+    o{\tt X}\_STALL &  1 & モジュール {\tt X} への stall 信号出力 \\
+    oA\_SREQ        & 32 & アービタモジュールへのメッセージ送信リクエスト信号出力\\
+    oA\_ERDY        & 32 & アービタモジュールへのエンキュー可能信号出力\\
+    oA\_GREQ        & 32 & アービタモジュールへのガベージコレクションリクエスト信号出力\\
+    \hline
+  \end{tabular}
+  \end{small}
+\end{table}
+
+\par
+I/O モジュールはメモリマップト I/O の役割を担当し, 各プロセス, ライブラリモジュール間の制御レジスタやアービタモジュールとのやりとりを行う. 
+各モジュールは I/O モジュールを介してバスに接続する. L$i$ からのアクセスが H$i$ へのアクセスか Q$i$ へのアクセスかは I/O モジュールが判断し, 出力先を切り替える. 
+\par
+
+\subsection{バスモジュール}
+二つのバスモジュール H-bus, Q-bus を Verilog HDL で設計した. H-bus の構造を図 \ref{fig:bus} (a) に, Q-bus の構造を図 \ref{fig:bus} (b) にそれぞれ示す. \par
+%% H-bus
+図 \ref{fig:bus} (a) は H-bus モジュールである. 矢印がポートであり,  ポート名先頭の ``i'', ``o'' はそれぞれ入力ポートと出力ポートである. 
+図 \ref{fig:io} と同様, ADDR は 32 ビットアドレス, DATA は 32 ビットデータ, RE は 1 ビットの read enable 信号, WE は 1 ビットの write enable 信号, BE は 4 ビットの byte enable 信号, STALL は 1 ビットの stall 信号である.
+ PM は P$_i$ と接続するI/O モジュールである. iPM は I/O モジュールからの入力ポートであり, P$_i$, Q$_i$ から I/O モジュールに入力された信号のうち run レジスタへのアクセス以外で H$_i$ へのアクセスを行う信号を受け取る. BM は H-bus を表し, MEM はヒープ/スタック用領域 H$_i$ を表す. 末尾の数字はプロセス番号を表す. 例えば, oBM2MEM\_ADDR0 は H0 へアドレスを出力するポートである. 
+\par
+%% Q-bus
+図 \ref{fig:bus} (b) は Q-bus モジュールである. ポートの構成は H-bus モジュールとよく似ている. 図 \ref{fig:bus} (b) では, BM は Q-bus を表し, MEM はメッセージキュー/ミニヒープ用領域 Q$_i$ を表す. 
+LM は L$_i$ と接続する I/O モジュールである. iLM は I/O モジュールからの入力ポートであり, L$_i$ から I/O モジュールに入力された信号のうち run, send, enqueue, gc レジスタへのアクセス以外で Q$_i$ または Q$_j$ ($i\ne j$) へのアクセスを行う信号を受け取る. 例えば, oBM2MEM\_ADDR0 は Q0 へアドレスを出力するポートである. 
+\par
+本システムでは, バスモジュールは状態を持たないよう設計した. これは, シミュレーションのときに利用するメモリデバイスが非同期型であるためである. 同期型のメモリデバイスを利用する場合には状態が必要である. 
+\par
+
+%% \begin{itemize}
+%% \item 入力: I/O, メモリ
+%% \item 出力: I/O, メモリ
+%% \item 状態は持たない. テストシミュレーションのメモリが非同期型のため, メモリ同期型であれば出力ポートにレジスタを持ってどこから来たかを記憶する必要がある
+%% \item 対象のアドレス〜アドレスに当てはまったら H$_i$ に出力
+%% \item H-bus の入出力は I/O とヒープ, Q-bus の入出力は I/O とキューになる
+%% \end{itemize}
+\begin{figure}[h]
+  \centering
+  \begin{minipage}{.99\textwidth}
+    \begin{center}
+      \includegraphics[height=5.5cm]{images/port_hbus.eps}\\
+      \subfigure{(a) H-bus モジュール}
+    \end{center}
+  \end{minipage}\\
+  \vspace{1em}
+  \begin{minipage}{.99\textwidth}
+    \begin{center}
+      \includegraphics[height=5.5cm]{images/port_qbus.eps}\\
+      \subfigure{(b) Q-bus モジュール}
+    \end{center}
+  \end{minipage}
+  \caption{バスモジュール}
+  \label{fig:bus}
+\end{figure}
+\par
+他プロセスのローカルメモリへのアクセスは H-bus, Q-bus を介して行う. H-bus はガベージコレクションに利用する. Q-bus はメッセージ送信に利用する. 入力されたアドレスが自身のローカルメモリへのアクセスであれば直接メモリへアクセスを行い, 他プロセスのローカルメモリへのアクセスであればバスを利用しアクセスする. アービタによりバスを利用するプロセスは一組と保証されているため競合は起こらない.
+\par
+\subsection{アービタモジュール}
+アービタモジュールを Verilog HDL で設計した. アービタモジュールの構造を図 \ref{fig:arbiter20170514} に示す. 
+矢印はポートであり, ``i'', ``o'' はそれぞれ入力ポートと出力ポートを表し, 末尾の数字はプロセス番号を表す. すべてのポートは I/O モジュールと接続している. 
+iSEND$_i$ は L$i$ からのメッセージ送信リクエスト信号であり, oS\_RDY$_i$ は L$i$ のメッセージ送信許可信号である. どちらも I/O モジュール内の send レジスタとデータのやりとりを行う.
+iE\_RDY$_i$ は L$i$ のエンキュー可能信号であり, oE\_REQ$_i$ は L$i$ のエンキューリクエスト信号である. どちらも enqueue レジスタとデータのやりとりを行う.
+iGC\_REQ$_i$ は L$i$ のガベージコレクションリクエスト信号であり, oGC\_DN$_i$ はガベージコレクション終了信号である. どちらも gc レジスタと接続する. 
+iGC\_DN はガベージコレクション処理終了信号であり, oGC\_PROC はガベージコレクションリクエストプロセス信号である. これらは GC の I/O モジュール内の gc レジスタとデータのやりとりを行う. \par
+アービタモジュールは, メッセージ送信リクエスト処理のために 3 状態, ガベージコレクションリクエスト処理のために 2 状態所有する形で設計した. 
+ガベージコレクションリクエスト処理の状態を Sg0, Sg1 とすると, Sg0 は \ref{sec:arb} 節の (1, 2), Sg1 は (3, 4) の処理を担当する. メッセージ送信リクエスト処理の状態を S0, S1, S2 とすると, S0 は \ref{sec:arb} 節の (1, 2), S1 は (3, 4), S2 は (5, 6, 7) を担当する.
+%\par
+\begin{figure}[h]
+  \begin{center}
+    \vspace{2em}
+    \includegraphics[height=2.2cm]{images/port_arb.eps}
+    \caption{アービタモジュール}
+    \label{fig:arbiter20170514}
+  \end{center}
+\end{figure}
+\par
+アービタモジュールは, プロセスから送られるメッセージ送信リクエストとガベージコレクションリクエストの調停を行う. 複数のリクエストが同時に来たときには, 優先度に従って実行許可を与えるリクエストを決定する. メッセージ送信やガベージコレクションの処理中に新しいリクエストが来たときは, 現在の処理が終わってから新しいリクエストを含む待機中のリクエストの中で最も優先順位が高いものに実行許可を与える. 
+\par
+
+\section{実験}
+本手法に基づき図 \ref{fig:roomba_sample1}, \ref{fig:roomba_sample} のシステムを高位合成すると図 \ref{fig:hwconf-roomba} のようなハードウェア構成となる. iport0 は図 \ref{fig:roomba_sample1} の port0 のライブラリモジュールであり, P0 へのメッセージ送信機能のみを有する. oport1 は図 \ref{fig:roomba_sample1} の port1 のライブラリモジュールであり, P0 からのメッセージ送信リクエストがあったときにキューへのつなぎこみを許可する信号を与える機能のみを有する. \par
+
+\begin{figure}[h]
+\begin{center}
+\includegraphics[height=6.8cm]{images/roomba-hw.eps}
+\caption{合成対象となる Erlang プログラムのハードウェア構成}
+\label{fig:hwconf-roomba}
+\end{center}
+\end{figure}
+
+本手法で利用したメモリレイアウトを図 \ref{fig:membank_sim} に示す. t0 は ibufferであり, t1 は obuffer である.
+ACAP で高位合成を行うと 0xC0000000--0xC00000E0 までは割り込みハンドラ等の処理のための関数の領域を確保するため, 本システムが利用するメモリの開始番地は 0xC00000E4 からとなる. ACAP で C プログラムから合成したモジュールは, 関数を呼び出すときにローカル変数等のために利用するスタック領域が必要であり, スタック領域は他のモジュールからアクセスされないようにしなければならない.
+iport0, oport1 は ibuffer, obuffer 内にスタック領域を確保する. ibuffer, obuffer はどちらもバスに接続されておらず, 他プロセスからアクセスされない.
+gc は GC が利用するスタック領域であり, GC の I/O モジュールのみがアクセスする.
+L0 のスタック領域 s0 は外部からアクセスされてはいけないが, Q0 に格納すると他プロセスからアクセスされる可能性があり, H0 に格納すると P0 からアクセスされる可能性がある. このため, s0 には 0xC0005000--0xC00050E0 間の独立した領域を割り当て, s0 は L0 の I/O モジュールのみと接続するようにした. s1 は L1 のスタック領域であり, 同様に領域を割り当てる.
+\par
+
+\begin{figure}[h]
+  \begin{center}
+    \includegraphics[height=6cm]{images/memorybank_sim.eps}
+    \caption{シミュレーション時のメモリレイアウト}
+    \label{fig:membank_sim}
+  \end{center}
+\end{figure}
+
+本システムで Verilog HDL を生成し, FPGA を対象に論理合成した結果を表 \ref{tab:result} に示す. ``LUTs'' は LUT 数, ``FFs'' はフリップフロップ数, ``delay'' はクリティカルパス遅延を表す. 論理合成は Artix-7 (xc7a100tcsg324-3) をターゲットに Vivado (2015.4) で面積最適化オプションを指定して行った. 参考のため, MIPS R3000 ソフトコア \cite{mips} の合成結果を ``MIPS'' 行に記載している. 
+\par
+バスモジュール, アービタモジュール, I/O モジュールは手設計したものであり, いずれも小さく高速である. 
+iport0 は MIPS と同程度の回路規模であり, oport1 は非常に小さくなった. これは, iport0 は P0 へのメッセージ送信機能のみを有するからであり, oport1 はメッセージ送信リクエストに対してキューへのつなぎこみを許可する信号を与える機能のみを有するからである. 
+\par
+プロセスモジュールは MIPS に比べ 1.4--1.96 倍の回路規模となった. P0, P1 の間に回路規模の差が生じるのは, P0 は各ポート, プロセス間においてデータを受け渡しすることが主な機能であるが, P1 はデータの成型や変換といった機能を所有しているからであると考えられる.
+\par
+ライブラリモジュールは MIPS に比べ 2.93--2.98 倍と非常に大きい. これは, 現時点ではまだ十分なアーキテクチャの最適化を行っていないためである. L1 より L0 の方が大きくなっているのは, L1 はプロセス/ポート間通信はプロセス 0 としか行わないが, L0 はプロセス/ポートどちらとも通信を行うため, その機能を有するからである. 回路規模の削減は今後の課題である. 
+\par
+ガベージコレクション機能を独立したモジュールとして合成することにより, 従来法よりライブラリモジュールの回路規模を削減することができた. しかし, GC は MIPS に比べ 1.94 倍の回路規模となっており, 回路規模の削減は今後の課題である.
+また, ライブラリモジュールと GC を MIPS に置き換えることにより回路規模削減を図る手法も考えられる.
+\par
+
+\begin{table}[h]
+\begin{small}
+\begin{center}
+\caption{合成結果}
+\label{tab:result}
+\smallskip
+\begin{tabular}{|c|r|r|r|}
+\hline
+ & LUTs & FFs & delay [ns] \\
+\hline
+bus     &    245 &     0 &  5.030 \\
+arbiter &    169 &   180 &  3.460 \\
+I/O     &    415 &   128 &  7.235 \\
+P0      &  4,520 & 1,010 & 10.757 \\
+P1      &  6,007 &   888 & 12.171 \\
+GC      &  5,968 & 1,349 & 12.003 \\
+L0      &  9,163 & 1,323 & 14.441 \\
+L1      &  8,994 & 1,386 & 13.846 \\
+iport0  &  3,646 &   683 & 11.133 \\
+oport1  &    539 &   138 &  5.688 \\
+\hline
+MIPS & 3,070 & 1,771 & 13.037 \\
+\hline
+\end{tabular}
+\par\medskip
+論理合成: Vivado 2015.4,  ~ターゲット: Artix-7
+\end{center}
+\end{small}
+\end{table}
+
+ライブラリモジュールは C 言語のレベルで動作確認後に高位合成を行い, レジスタ転送レベルシミュレーションでの単体テストにより動作を確認した. 手設計のモジュールは Verilog HDL で記述後, 単体テストにより動作を確認した. プロセスモジュール, ライブラリジュール, 手設計のモジュールを組み合わせた結合テストにより動作を確認した. GC は, 高位合成を行い, C 言語のレベルでのみ動作確認を行った. \par
+レジスタ転送レベルシミュレーションで確認した本システムの処理時間を表 \ref{tab:result2} に示す. ``cycle'' は入力ポートのメモリにデータが書き込まれてから出力ポートのメモリに値を出力するまでのサイクル数である. ibuffer にデータを書き込んだサイクルを開始点とする. その後, iport0 がデータを読み取り P0 に送信する. P0 は iport0 から受信したデータを P1 に転送し, P1 はデータを変換し P0 に返送する. そのデータを P0 が oport1 に送信し, obuffer にデータを書き込んだ時点を処理終了とし, この区間のサイクル数を測定した. ``time'' はそれにクリティカルパス遅延を乗じた値である. ただし, シミュレーションに用いたメモリは非同期型であり, メモリアクセスは 1 クロックで出力を完了するモデルである.
+またこのシミュレーション中にガベージコレクションは発生していない. 
+\par
+
+\begin{table}[h]
+%  \centering
+  \begin{center}
+    \caption{処理時間 \label{tab:result2}}
+    \vspace{0.4em}
+    \begin{small}
+      \begin{tabular}{|r|r|} \hline
+        cycle & time [$\mu$s] \\ \hline
+        2,400 & 34.658 \\ \hline
+      \end{tabular}
+    \end{small}
+  \end{center}
+\end{table}
+
+\section{考察}
+提案手法により, シングルポートのメモリデバイスでの並列処理が実現できた. \par
+実験では 2 プロセスからなる Erlang プログラムからの高位合成を行ったが, プロセス数が 10 程度までであれば同じ方法で並列処理を実現できる. より多くのプロセス数を想定した場合, I/O モジュールはプロセス毎に有するためモジュール内部には変更がない. バスモジュール, アービタモジュールの構成は, プロセス数を $n$ とすると回路規模, 回路遅延はともに $O(n)$ となる. 回路遅延が $O(n)$ となっているのは, 現在の実装ではメモリへのアクセス権や優先権の比較を逐次的に行っているためである. 効率的な比較法を採用すると, 回路遅延は $O($log $n)$ にできると考えている. 
+\par
+提案手法では, 同時プロセス間通信を一組のみと限定し, 二つのバスを利用したアーキテクチャであったが, プロセス数が増加した場合には, 複数組の同時プロセス間通信を実現するためにバスを三つ以上利用したアーキテクチャに拡張する方式が考えられる. しかし, 単純にバスを増加すると一つのメモリに対し複数のバスが接続しメモリ衝突が発生する. このため, 衝突を回避するためのモジュール等が別途必要になり, さらにコストが増加する. 
+メッセージ通信を行うプロセス対が静的に決定できる既知の
+場合には必要な部分にのみ通信網を設定する方式を採用することも考えられる. 
+\par
+文献 \cite{hamana} の手法に基づき, ガベージコレクション機能をライブラリモジュールから独立させることにより回路規模を削減できたが, MIPS と比べるといまだに大きい. \cite{hamana} では, ライブラリモジュールの回路規模をさらに削減するために, メッセージ通信に利用する関数をまとめる手法を提案している. この手法を導入することによりライブラリモジュールのさらなる回路規模削減が見込まれる. ライブラリモジュールの回路規模削減のために, メッセージ通信部以外を C 言語からの高位合成ではなく Verilog HDL により実装する手法や, ライブラリモジュールを MIPS に置き換える手法が考えられる.
+\par
+今回合成した Erlang プログラムは単一プロセスでの処理も可能であるが, 実験のために 2 プロセスを生成し, プロセス間通信を発生させた. このため, サイクル数や処理速度自体に意味があるものではないが, データ転送以外のオーバーヘッドは発生しなかった.
+\par
+
+\chapter{結論}
+% 結論
+本論文では, Erlang からの高位合成のためのメモリ分散アーキテクチャを提案した. 提案手法は, 各 Erlang プロセスが独立した記憶領域を所有するアーキテクチャであり, これによって全プロセスが並列に動作することが可能となった. 二つのバスアーキテクチャを採用し, プロセス間のメモリアクセスはバスを介して行った. メモリ衝突を回避するため, プロセス間の同時メッセージ送信は一組のみと制限することにより, メモリ衝突を発生させずにプロセス間のメッセージ送信を行うことが可能となった. また, このメッセージ送信の調停はアービタにより行った. \par
+提案手法に基づき, 2 プロセスを有する簡素な Erlang プログラムからメモリ分散アーキテクチャを高位合成により生成した. レジスタ転送レベルシミュレーションによる動作確認を行い, シミュレーション上で動作することが確認できた. \par
+本論文の手法により, 複数プロセスを有する Erlang プログラムを高位合成し, シミュレーション上で動作するハードウェアを生成することが可能となった. 提案手法を利用することにより, 複数プロセスを有する組込みシステムに対しても応用できる可能性がある. \par
+今後の課題は, 高位合成により生成されるモジュールの回路規模の削減, および回路構成の最適化である. \par
+
+
+\acknowledgement
+
+本研究に際し, 多くの方々から御助言, 御助力を賜りました. ここに感謝の意を表します.\par
+本研究の機会を与えていただき, 数々の御助言, 御指導を賜りました石浦菜岐佐教授に心より感謝いたします. \par
+本研究に関する有益な議論の場を提供していただき, 様々な視点から御指導いただきました京都高度技術研究所の神原弘之氏に感謝いたします. 本分野について深い知見をもち, 多くの御助言, 御指導いただきました立命館大学の冨山宏之教授に感謝いたします. 技術的な面で多くの御助言をいただきました元立命館大学の中谷嵩人氏に感謝いたします. \par
+本研究に関して御協力, 御討議頂いた元関西学院大学の田村真平氏, 竹林陽氏, 関西学院大学石浦研究室の浜名将輝氏, 若林秀和氏をはじめ, 関西学院大学石浦研究室 HLS チームの諸氏に深く感謝いたします. 研究にかぎらず私生活の面でも多くの御支援を賜りました石浦研究室の諸氏に感謝いたします. \par
+
+
+\chapter*{関連発表文献}
+
+% - 発表日の *新しい順* にして下さい (最近の発表が一番前で, 昔の発表が後ろ)
+% - 論文自体の書式は参考文献と同じ
+
+\begin{enumerate}
+\item 東香実, 浜名将輝, 若林秀和, 石浦菜岐佐, 吉田信明, 神原弘之:
+  ``Erlang からの高位合成のためのメモリ分散アーキテクチャ,''
+  電子情報通信学会技術研究報告, VLD2017-75 (Jan.~2018).
+\item Kagumi Azuma, Nagisa Ishiura, Nobuaki Yoshida, and Hiroyuki Kanbara: 
+  ``Distributed Memory Architecture for High-Level Synthesis of Embedded Controllers from Erlang,''
+  in \textit{Proc. ACM SIGPLAN International Workshop on Erlang 2017 (ERLANG '17)}, pp.~13--19 (Sept.~2017).
+\item 東香実, 大迫裕樹, 柴田敦也, 神原弘之, 國枝義敏:
+  ``教育用16bitプロセッサ KUECHIP-3F の開発,''
+  情報処理学会関西支部大会, A-04 (Sept.~2017).
+\item 東香実, 石浦菜岐佐, 竹林陽, 吉田信明, 神原弘之: 
+  ``Erlang による組込みシステムの制御記述とその高位合成 (ポスター発表),''
+  組込みシステム技術に関するサマーワークショップ (SWEST18), R-10 (Aug.~2016).
+  \par $\bullet$ ベストポスター賞ゴールド 受賞 (2016年8月26日). 
+\item Hinata Takebayashi, Nagisa Ishiura, Kagumi Azuma, Nobuaki Yoshida, and Hiroyuki Kanbara: 
+  ``High-Level Synthesis of Embedded Systems Controller from Erlang,''
+  in \textit{Proc. Workshop on Synthesis And System Integration of Mixed Information Technologies (SASIMI 2016)}, R4-2, pp.~285--290 (Oct.~2016).
+\item 竹林陽, 石浦菜岐佐, 東香実, 吉田信明, 神原弘之:
+  ``Erlang による組込みシステムの制御記述からの高位合成,''
+  電子情報通信学会技術研究報告, VLD2015-114 (Feb.~2016).
+\item 東香実, 石浦菜岐佐: 
+  ``バイナリ合成における回路規模削減のための状態およびマルチプレクサ制御信号の符号化,'' 
+  電子情報通信学会ソサイエティ大会, A-3-4 (Sept.~2015).
+% \item E. Nagai, A. Hashimoto, and N. Ishiura:  
+%``Reinforcing Random Testing of Arithmetic Optimization of C Compilers
+%by Scaling up Size and Number of Expressions,''
+%{\it IPSJ Trans.\ System LSI Design Methodology}, 
+%vol.~7, pp.~91-100 (Aug.\ 2014). 
+%
+% \item 福本貴之, 石浦菜岐佐: 
+% ``PerlのためのCUDAバインディングフレームワークPerCUDA,''
+% 電子情報通信学会技術研究報告, VLD2013-132 (Jan. 2014).
+% \par $\bullet$ 情報処理学会 SLDM 優秀発表学生賞 受賞 (2014年8月28日). 
+% \par $\bullet$ 情報処理学会 コンピュータサイエンス領域奨励賞 受賞 (2015年7月15日). 
+%
+% \item 竹林陽, 伊藤直也, 田村真平, 神原弘之, 石浦菜岐佐:
+%  ``高位合成系ACAPを用いたモーターの浮動小数点モデルのFPGA上での実行,''
+%  情報処理学会関西支部大会, A-02, (Sept. 2014).
+%  \par $\bullet$ 情報処理学会関西支部 2014年度支部大会 学生奨励賞 (2014年9月17日).
+\end{enumerate}
+
+\begin{thebibliography}{99}
+
+\bibitem{HLS} Daniel D. Gajski, Nikil D. Dutt, Allen C-H Wu, and Steve Y-L Lin: 
+\textit{High-Level Synthesis: Introduction to Chip and System Design}, 
+Kluwer Academic Publishers (1992).
+
+\bibitem{systembuilder} 本田晋也, 冨山宏之, 高田広章: 
+``システムレベル設計環境: SystemBuilder,'' 
+電子情報通信学会論文誌, vol.~J88-D-I, no.~2, pp.~163--174 (Feb.~2005).
+
+\bibitem{copro} 田村真平, 石浦菜岐佐, 神原弘之, 冨山宏之: 
+``CPU密結合型アクセラレータの機械語プログラムからの自動合成,'' 
+電子情報通信学会技術研究報告, VLD2013-133 (Jan.~2014).
+
+\bibitem{erlang}
+Joe Armstrong著, 榊原一矢訳: 
+プログラミングErlang, 
+オーム社 (2008).
+% Joe Armstrong. 2007. \textit{Programming Erlang: Software for a Concurrent World}, 
+% Pragmatic Bookshelf. 
+
+\bibitem{temp1}
+力武健次: 
+``Erlang で学ぶ並行プログラミング,'' 
+Software Design, 2015年4月号, pp.~124--129 (Apr.~2015).
+
+\bibitem{temp2}
+Brian Chamberlain: 
+Using Erlang on the RaspberryPi to interact with the physical world (online), 
+\url{http://www.slideshare.net/breakpointer/using-erlang-on-the-raspberrypi} 
+(accessed 2017-08-28).
+
+\bibitem{takebayashi} % 竹林さんの VLD
+竹林陽, 石浦菜岐佐, 東香実, 吉田信明, 神原弘之:
+``Erlang による組込みシステムの制御記述からの高位合成,''
+電子情報通信学会技術研究報告, VLD2015-114 (Feb.~2016).
+
+\bibitem{sasimi}
+Hinata Takebayashi, Nagisa Ishiura, Kagumi Azuma, Nobuaki Yoshida, and Hiroyuki Kanbara: 
+  ``High-Level Synthesis of Embedded Systems Controller from Erlang,''
+  in \textit{Proc. Workshop on Synthesis And System Integration of Mixed Information Technologies (SASIMI 2016)}, R4-2, pp.~285--290 (Oct.~2016).
+
+\bibitem{acap}
+Nagisa Ishiura, Hiroyuki Kanbara, and Hiroyuki Tomiyama: 
+``ACAP: Binary Synthesizer Based on MIPS Object Codes,'' 
+in \textit{Proc. International Technical Conference on Circuit/Systems, Computers and Communications (ITC-CSCC 2014)}, pp.~725--728 (July 2014).
+
+\bibitem{erlws}
+Kagumi Azuma, Nagisa Ishiura, Nobuaki Yoshida, and Hiroyuki Kanbara: 
+  ``Distributed Memory Architecture for High-Level Synthesis of Embedded Controllers from Erlang,''
+  in \textit{Proc. ACM SIGPLAN International Workshop on Erlang 2017 (ERLANG '17)}, pp.~13--19 (Sept.~2017).
+
+\bibitem{azuma}
+東香実, 浜名将輝, 若林秀和, 石浦菜岐佐, 吉田信明, 神原弘之:
+``Erlang からの高位合成のためのメモリ分散アーキテクチャ,''
+電子情報通信学会技術研究報告, VLD2017-75 (Jan.~2018).
+
+\bibitem{morioka}
+森岡澄夫:
+``高位合成の必要性と技術的課題, そして今後,''
+FPGA マガジン, no.~10, pp.~4--15 (Aug.~2015).
+
+\bibitem{hamana}
+浜名将輝, 石浦菜岐佐, 吉田信明, 神原弘之: 
+``Erlang からの高位合成のためのライブラリモジュールの回路規模削減,''
+電子情報通信学会ソサイエティ大会, A-6-2 (Sept.~2017). 
+
+\bibitem{mips}
+神原弘之, 金城良太, 戸田勇希, 矢野正治, 小柳滋: 
+``パイプラインプロセッサを理解するための教材 RUE-CHIP1 プロセッサ,'' 
+情報処理学会関西支部大会, A-09 (Sept.~2009). 
+
+\end{thebibliography}
+
+%\appendix
+%
+%付録はこのように，\verb+\appendix +コマンドを用いて書く．
+%付録が複数あり「付録A」「付録B」などとしたい場合は，
+%\begin{quote}
+%\verb+\appendix[A]+\\
+%\verb+\appendix[B]+
+%\end{quote}
+%などとすればよい．
+ 
+\end{document}
+

@@ -1,0 +1,34 @@
+#include<stdio.h>
+
+int main(void){
+	int a=1234;
+	int b=6666;
+	double x=98.75;
+	double y=77.77;
+	
+	int *p1;
+	double *p2;
+	
+	printf("aの番地は %p\n",&a);
+	printf("bの番地は %p\n",&b);
+	printf("xの番地は %p\n",&x);
+	printf("yの番地は %p\n",&y);
+	
+	p1 = &b;
+	printf("a内容 = %d\n",a);
+	*p1 = *p1 + 4;
+	printf("b内容 = %d\n",b);
+	
+	p2 = &x;
+	printf("x内容 = %.2f\n",x);
+	*p2 = *p2 * 2;
+	printf("y内容 = %.2f\n",y);
+	
+	for(;;){
+		printf("番地を入力 : ");
+		scanf("%p",&p2);
+		if(p2==0){break;}
+		printf("%p 番地の内容は %.2f\n",p2,*p2);
+	}
+	return 0;
+}

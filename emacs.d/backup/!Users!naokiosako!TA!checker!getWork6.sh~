@@ -1,0 +1,10 @@
+declare -a array=(9701 9695 9696 9697 9699 9700 9701 9702 9703 9705 9706 9707 9710 9711 9713 9714 9715 9716 9717 9718 9719 9720 9721 9722 9723 9724 9725 9726 9727 9728 9729 7653)
+work=("example04-03-02.py" "example04-04-01.py" "ex04-01.py" "ex04-02.py" "ex04-03.py")
+
+for((i = 0; i < ${#array[@]}; i++)) {
+       mkdir -p ./$1/${array[i]}
+       for((j = 0; j < 1; j++)) {
+	      wget -q --http-user="M8305" --http-password="271828" https://ist.ksc.kwansei.ac.jp/~ishiura/cgi-bin/report/main.cgi\?S=2019cxa12\&act_item=1\&s=${array[i]}\&r=R6\&i=${work[j]} -O ./R6/${array[i]}/${work[j]}
+	      
+	  }
+   }

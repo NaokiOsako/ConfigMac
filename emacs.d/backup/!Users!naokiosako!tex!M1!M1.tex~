@@ -1,0 +1,248 @@
+
+%% 参考文献の名前とかの書き方揃える！！
+
+\documentclass[a4paper, twocolumn]{jsarticle}
+%\usepackage{newenum}
+\usepackage[dvipdfmx]{graphicx}
+%\usepackage{reducevskip}
+\usepackage{url}
+\usepackage{dcolumn}
+\usepackage{nidanfloat}
+\pagestyle{plain}
+
+%高さ
+\setlength{\textheight}{\paperheight}
+%% \setlength{\topmargin}{-25.0truemm}
+\setlength{\topmargin}{-20truemm}
+%% \addtolength{\topmargin}{-\headheight}
+%% \addtolength{\topmargin}{-\headsep}
+%% \addtolength{\textheight}{-25truemm} % 段組の縦幅？
+\addtolength{\textheight}{-35truemm} % 段組の縦幅？
+%% 変更する最終手段
+
+
+
+%幅
+\setlength{\textwidth}{\paperwidth}
+\setlength{\oddsidemargin}{-10.4truemm}
+\setlength{\evensidemargin}{-10.4truemm}
+\addtolength{\textwidth}{-30truemm} % 段組の幅
+
+\renewcommand{\baselinestretch}{1.05}
+% 本文と図のスペース
+\setlength\textfloatsep{0.5em} % 下
+%\setlength\intextsep{10pt} % 上
+
+
+\makeatletter
+% sectionの下マージンを小さく
+\renewcommand{\section}{%
+  \@startsection{section}{1}{\z@}%
+                {0.3\Cvs}{0.2\Cvs}%
+                {\normalfont\large\headfont\raggedright}}
+\makeatother
+
+\begin{document}
+
+
+\twocolumn[
+  \begin{flushright}
+    修士論文中間審査 2019 年 8 月 30 日
+  \end{flushright}
+  \vspace{4pt}
+  \begin{center}
+    \bf
+       {\LARGE
+         電流兆候解析に基づくモーターの \par
+         オンライン故障検知のハードウェア実装
+       }
+  \end{center}
+  \begin{center}
+    \large{石浦研究室 47018305 大窄 直樹}\\
+  \end{center}
+  \bigskip
+]
+
+\pagestyle{empty}
+
+
+\section{はじめに}
+我々の周りには, 工場機器, 飛行機, 空調機器等の常時動作しているモーターを用いた機器が数多ある．
+これらの機器が故障し動作を停止すると人々の生活に多大な影響が出てしまうため, それらを事前に防ぐ対策が日々講じられている.
+従来行われてきた故障防止のための対策は, 経験則による時間基準保全である．
+しかし保全作業を行う時期が経験則に基づいており，実際の個々の電気機器に対してその時期が適切であるかどうかの判断はできて
+いない．
+そこで近年，状態基準保全という日常的な診断により機器状態を推定し，故障や寿命の時期を詳細に予測して整備，修理，交
+換を行う方式が行われつつある. 機器の状態を推定する手法の一つに電流兆候解析がある.
+
+電流兆候解析は, 固定子と回転子のエアギャップの変化, 回転子の抵抗値の変化などが空間時速線に影響を与え, 逆起電力を通して固定子に
+流れる電流に反映しているという理論に基づいたものである \cite{Toyota}.
+また, 電流兆候解析では, モーターの電圧のアンバランス, 巻線異常, 固定子異常などの電気的故障を検知できる \cite{Aditya}.
+電流信号からパワースペクトルを生成するためのフーリエ変換の処理ボトルネックで時間がかかるためオフライン化した.
+
+文献 \cite{Shubhasish} では, 電流兆候解析の高速化のため, モーターの電流信号をハードウェア送信した.
+しかし, 故障検知は行なっていない.
+
+そこで, 本論文では電流兆候解析に基づくモーターのオンライン故障検知のハードウェア実装を行う.
+フーリエ変換を高位合成を用いてハードウェア化することで, 高速化しオンライン化を試みる.
+
+\section{モーターの電流兆候解析}
+\subsection{モーターの故障}
+モーターの故障は機械的故障, 電気的故障の2種類に分類できる.
+機械的故障は例えば, ベアリングの潤滑不足, 異物混入, 基礎劣化といった機械的な故障に対し
+電気故障は ,巻線異常, 電圧アンバランス, 偏心といった電気に影響を及ぼす故障である.
+
+\subsection{電流兆候解析}
+電流兆候解析は, 固定子と回転子のエアギャップの変化, 回転子の抵抗値の変化などが空間時速線に影響を与え, 逆起電力を通して固定子に
+流れる電流に反映しているという理論に基づいたものである \cite{Toyota}.
+回転子バーの破損, 回転子の静的/動的偏心, 巻線の緩み, 固定子の破損などの電気故障を検知することができる.
+
+また, AC モーター, DC モーター, サーボモーター等様々なモーターの診断に用いることができるという利点がある.
+しかし, パワースペクトルの解析が必要なためフーリエ変換を行う必要があり処理が重い特徴がある.
+
+\section{電流兆候解析のオンライン実装}
+\subsection{電流兆候解析のハードウェア実装}
+この課題に対し, 本研究では電流兆候解析のハードウェア実装を行う.
+構成を図 \ref{fault}に示す. 
+モーターの電流信号をハードウェアへ送信を行い, ハードウェア上で AD 変換を行う,
+そのデータをフーリエ変換することでパワースペクトルの生成を行い, 解析することで故障検知を行う.
+
+\subsection{フーリエ変換のハードウェア化}
+フーリエ変換は固定小数点の512点FFT (Fast Fourier Transform)で行う.
+FFT は高位合成を行うことで, ハードウェア化する.
+C 言語で書かれたFFT を 高位合成システム VivadoHLS を用いて高位合成を行うことによりハードウェア記述VerilogHDLを生成する.
+チューニング及び多チャネル化は行なっていない.
+この生成されたハードウェアは 23923 cycle 処理でき, LUT は 17600 である.
+動作周波数を100MHz とすると239 μs で実行できる.
+これは十分にオンライン故障検知可能な範囲である.
+\begin{figure}[htbp]
+  \begin{center}
+    \includegraphics[width=75mm]{FaultDetection.png}
+  \end{center}
+  \caption{モーターの故障検知のハードウェア実装}
+  \label{fault}
+\end{figure}
+
+\begin{table}[t]
+  \begin{center}
+    \begin{footnotesize}
+      \caption{固定小数点の512点FFT の合成結果}
+      \label{FFT}
+      \begin{tabular}{|r|r|r|}
+        \hline
+        \multicolumn{1}{|c|}{cycle}&  \multicolumn{1}{|c|}{LUTs}\\ \hline
+        23,923 & 17600\\ \hline
+      \end{tabular}
+    \end{footnotesize}
+  \end{center}
+\end{table}
+
+
+
+\section{実装と予備実験結果}
+\subsection{予備実験}
+ハードウェアで電流兆候解析を行うための予備実験を Analog Discovery2 を用いて行う.
+Analog Discovery2 はアナログ回路万能測定器で, FPGA を搭載していてオシロスコープ, スペクトラムアナライザ等を扱うことができる.
+構成を図 \ref{fault} のAD変換を行い時間信号波形生成し, フーリエ変換を行い周波数スペクトラムの生成までを Analog Discovery2 を用いて行う
+その後周波数スペクトラムを解析し, オフラインの故障検知を行う.
+また, この実験では DC モーターを使用する. 正常なモーター2個, 故障したモーター2個を使用し, それぞれのモーターの Duty 25\%, 50\%, 75\% 時解析を行う.
+図 \ref{union} は Duty 50\% 時のパワースペクトルである. 図 \ref{union}の上が正常なモーターの周波数スペクトラム, 下が故障したモーターの周波数スペクトラムである.
+故障したモーターのパワースペクトルは全体的に周波数成分が増加している.
+またいくつか突出した周波数成分が現れ, 最大周波数成分が大きくなっている .
+
+\subsection{スペクトラム解析}
+50-500Hz の間の最大周波数成分を取得する C プログラムを作成した.
+予備実験時は, ソフトウェアかつオフラインでシミュレーションを行なった.
+このC プログラムを高位合成によりハードウェア化し
+FFT の回路と組み合わせることでハードウェア上で最大周波数成分を取得できる.
+
+表 \ref{max} は各モーター, 各 Duty 時の最大周波数成分, 及びその時の周波数を表したものである.
+Duty がどのような値でも故障したモーターは正常なモーターに比べ最大周波数成分が増加している.
+また, 最大周波数成分を持つ周波数もまた変化している.
+正常時に比べ低い周波数が最大成分を持つ.
+
+
+
+\begin{figure}[h]
+  \begin{center}
+    \includegraphics[width=75mm]{union.png}
+  \end{center}
+  \caption{モーターの波形, 上:正常, 下: 故障}
+  \label{union}
+\end{figure}
+
+    
+\begin{table*}[b]
+  \begin{center}
+    \begin{footnotesize}
+      \caption{予備実験結果}\label{max}
+      %% \vspace{5pt}
+      \begin{tabular}{|l|D{.}{.}{5}|D{.}{.}{5}|D{.}{.}{5}|D{.}{.}{5}|D{.}{.}{5}|D{.}{.}{5}|}
+        \hline
+        \multicolumn{1}{|c|}{Duty}&  \multicolumn{2}{|c|}{25\%}& \multicolumn{2}{|c|}{50\%}& \multicolumn{2}{|c|}{75\%}\\ \hline 
+        \multicolumn{1}{|c|}{最大成分} & \multicolumn{1}{|c|}{振幅 [db]}& \multicolumn{1}{|c|}{周波数 [Hz]} & \multicolumn{1}{|c|}{振幅 [db]}& \multicolumn{1}{|c|}{周波数 [Hz]} & \multicolumn{1}{|c|}{振幅 [db]}& \multicolumn{1}{|c|}{周波数 [Hz]}\\ \hline 
+        正常1        & −6.361  & 92.651& −7.886 &92.773 & −14.956& 91.918\\  
+        正常2           & −7.44 & 93.017 & −9.565& 92.529 & −15.213& 91.674 \\   \hline 
+        故障小  & −1.688& 87.524 & −3.706& 87.036 & −7.306& 84.594  \\ 
+        故障大         & −1.779& 90.820 & 1.387 & 86.914 & −2.756& 84.472 \\ \hline
+
+      \end{tabular}
+    \end{footnotesize}
+  \end{center}
+\end{table*}
+
+
+%% \begin{table}[t]
+%%   \begin{center}
+%%     \begin{footnotesize}
+%%       \caption{予備実験結果 (Duty: 75\%の時追加したい)}
+%%       \label{res}
+%%       \vspace{5pt}
+%%       \begin{tabular}{|l|D{.}{.}{5}|D{.}{.}{5}|D{.}{.}{5}|D{.}{.}{5}|}
+%%         \hline
+%%         \multicolumn{1}{|c|}{Duty}&  \multicolumn{2}{|c|}{25\%}& \multicolumn{2}{|c|}{50\%}\\ \hline 
+%%         \multicolumn{1}{|c|}{最大成分} & \multicolumn{1}{|c|}{振幅 [db]}& \multicolumn{1}{|c|}{周波数 [Hz]} & \multicolumn{1}{|c|}{振幅 [db]}& \multicolumn{1}{|c|}{周波数 [Hz]}\\ \hline 
+%%         正常1        & −6.361  & 92.651& −7.886 &92.77\\  
+%%         正常2           & −7.44 & 93.017 & −9.565& 92.52 \\   \hline 
+%%         故障1  & −1.688& 87.524 & −3.706& 87.0 \\ 
+%%         故障2         & −1.779& 90.820 & 1.387 & 86.91\\ \hline
+
+%%       \end{tabular}
+%%     \end{footnotesize}
+%%   \end{center}
+%% \end{table}
+
+
+
+\section{現状と今後の課題}
+本論文では, 電流兆候解析に基づくモーターのオンライン故障検知のハードウェア実装を行なった.
+FFT のハードウェア実装及びオフラインでの電流兆候解析を行なった.
+今後は, モーターとハードウェアのデータ通信を行う.
+
+
+\begin{small}
+  \begin{thebibliography}{9}
+  \bibitem{Toyota}
+    Kazuo Toyota:
+    ``電流兆候解析 MCSA による電動機駆動回転機の診断技術,'' (online), 
+    \url{https://www.takada.co.jp/~takada-co-jp/giho/pdf/gihou20/kikou_1.pdf} 
+    (accessed 2019-08-27).
+
+    
+  \bibitem{Aditya}
+    Aditya Korde B. E.:
+    ``On-line condition monitring of motors using electrical signature analysis,'' (online), 
+    \url{http://www.powersight.com/FILES/APPLICATION_NOTES/Online%20Condition%20Monitoring%20of%20Motors.pdf} 
+      %% (accessed 2019-08-27).
+
+
+    \bibitem{Shubhasish}
+      Shubhasish Sarkar, Pranab Kumar Hembram, Prithwiraj Purkait, Santanu Das
+      ``Acquisition and Pre-processing of Three Phase Induction Motor Stator Current Signal for Fault Diagnosis using FPGA, NI Compact-RIO Real Time Controller ,''
+      in \textit{Proc.\ UPCON 2016}, pp.~110--114 (Dec.\ 2016).
+
+
+  \end{thebibliography}
+\end{small}
+\end{document}
+

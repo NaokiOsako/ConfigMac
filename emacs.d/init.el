@@ -4,7 +4,6 @@
         ("melpa" . "http://melpa.org/packages/")
         ("org" . "http://orgmode.org/elpa/")))
 
-
 ;;tab width
 (defun my-c-c++-mode-init ()
   (setq c-basic-offset 4)
@@ -12,18 +11,19 @@
 (add-hook 'c-mode-hook 'my-c-c++-mode-init)
 (add-hook 'c++-mode-hook 'my-c-c++-mode-init)
 
-;;(load-theme 'wheatgrass t)
+
+;; C-h をBackspaceに割り当て
+(global-set-key "\C-h" 'delete-backward-char)
 
 (setq custom-theme-directory "~/.emacs.d/themes/")
 (load-theme 'molokai t)
 
-;; Color
-(if window-system (progn
-    (set-background-color "Black")
-    (set-foreground-color "#ffffff")
-    (set-cursor-color "#999999")
-    (set-frame-parameter nil 'alpha 70) ;透明度
-    ))
+;; ;; Color
+;; (if window-system (progn
+;;     (set-foreground-color "#ffffff")
+;;     (set-cursor-color "#999999")
+;;     (set-frame-parameter nil 'alpha 70) ;透明度
+;;     ))
 
 
 ;; スクリーンの最大化
@@ -59,11 +59,6 @@
 (global-set-key "\C-x:" 'uncomment-region)
 (global-set-key "\C-x%" 'query-replace)
 
-;; C-h をBackspaceに割り当て
-(global-set-key "\C-h" 'delete-backward-char)
-;; (makunbound 'overriding-minor-mode-map)
-
-
 (require 'flymake)
 
 (defun flymake-cc-init ()
@@ -72,7 +67,7 @@
          (local-file  (file-relative-name
                        temp-file
                        (file-name-directory buffer-file-name))))
-    (list "g++" (list "-Wall" "-Wextra" "-fsyntax-only" local-file))))
+    (list "g++-9" (list "-Wall" "-Wextra" "-fsyntax-only" local-file))))
 
 ;; C
 (defun flymake-c-init ()
@@ -111,172 +106,51 @@
 ;; 行の最後に来たら、新しい行を作らない
 (setq next-line-add-newlines nil)
 
-;; YaTeX
-(autoload 'yatex-mode "yatex" "Yet Another LaTeX mode" t)
-(setq auto-mode-alist (append
-  '(("\\.tex$" . yatex-mode)
-    ("\\.ltx$" . yatex-mode)
-    ("\\.cls$" . yatex-mode)
-    ("\\.sty$" . yatex-mode)
-    ("\\.clo$" . yatex-mode)
-    ("\\.bbl$" . yatex-mode)) auto-mode-alist))
-
-;;自動改行を抑制 これがないと長い文章のよくわからないところで改行される
-(add-hook ' yatex-mode-hook
-'(lambda () (auto-fill-mode -1)))
+;; ツールバーを非表示
+(menu-bar-mode 0)
+(scroll-bar-mode 0)
 
 
-;; RefTexという参考文献とかを補完するモードをONにする 使い方がよくわかってないので調べる
-(add-hook 'yatex-mode-hook
-      #'(lambda ()
-          (reftex-mode 1)
-          (define-key reftex-mode-map
-        (concat YaTeX-prefix ">") 'YaTeX-comment-region)
-          (define-key reftex-mode-map
-        (concat YaTeX-prefix "<") 'YaTeX-uncomment-region)
-          ))
-;;起動時画面
-;(setq inhibit-startup-screen t)
-;(split-window-horizontally)
-;(other-window 1)
-;; (split-window-vertically)
-;(multi-term)
+;;同様のフォント設定があればコメントアウトしておくべき
+(add-to-list 'default-frame-alist '(font . "ricty-13.5"))
 
+(setq auto-save-file-name-transforms
+  `((".*", (expand-file-name "~/.emacs.d/backup/") t)))
 
-; load environment value
-;(load-file (expand-file-name "~/.emacs.d/shellenv.el"))
-;(dolist (path (reverse (split-string (getenv "PATH") ":")))
- ;(add-to-list 'exec-path path))
-;(setf exec-path nil)
+(require 'zlc)
+(zlc-mode 1)
+(let ((map minibuffer-local-map))
+  ;;; like menu select
+  (define-key map (kbd "C-n")  'zlc-select-next-vertical)
+  (define-key map (kbd "C-p")    'zlc-select-previous-vertical)
+  (define-key map (kbd "C-f") 'zlc-select-next)
+  (define-key map (kbd "C-b")  'zlc-select-previous)
 
-(require 'multi-term)
+  ;;; reset selection
+  (define-key map (kbd "C-c") 'zlc-reset)
+  )
 
-(setq multi-term-program shell-file-name)
+(global-set-key (kbd "C-x C-p") 'count-words-region)
 
-;; emacs に認識させたいキーがある場合は、term-unbind-key-list に追加する
-(add-to-list 'term-unbind-key-list "C-\\") ; IME の切り替えを有効とする
-;; (add-to-list 'term-unbind-key-list "C-o")  ; IME の切り替えに C-o を設定している場合
- 
-;; terminal に直接通したいキーがある場合は、以下をアンコメントする
-(delete "<ESC>" term-unbind-key-list)
-;;(delete "C-h" term-unbind-key-list)
-;;(delete "C-z" term-unbind-key-list)
-;;(delete "C-c" term-unbind-key-list)
-(delete "C-y" term-unbind-key-list)
-(add-to-list 'term-unbind-key-list "M-x")
-;; C-c m で multi-term を起動する
-(global-set-key (kbd "C-c m") 'multi-term)
-(define-key term-raw-map (kbd "C-h") 'term-send-backspace)
+(add-to-list 'auto-mode-alist '(".*\\.js\\'" . rjsx-mode))
+(add-hook 'rjsx-mode-hook
+          (lambda ()
+            (setq indent-tabs-mode nil) ;;インデントはタブではなくスペース
+            (setq js-indent-level 2) ;;スペースは２つ、デフォルトは4
+            (setq js2-strict-missing-semi-warning nil))) ;;行末のセミコロンの警告はオフ
+(setq default-tab-width 4)
+;; ""()補完
+(electric-pair-mode 1)
 
-(custom-set-variables
- ;; custom-set-variables was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- '(package-selected-packages
-   (quote
-    (rjsx-mode web-mode wanderlust undo-tree quickrun pdf-tools package-utils org multi-term markdown-mode flymake-cursor flycheck-pos-tip bind-key auto-complete))))
-(custom-set-faces
- ;; custom-set-faces was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- '(term-color-black ((t (:background "black" :foreground "black"))))
- '(term-color-blue ((t (:foreground "orange"))))
- '(term-color-green ((t (:foreground "green3"))))
- '(zlc-selected-completion-face ((t (:background "dark gray" :foreground "white smoke" :slant normal :weight bold)))))
+(add-to-list 'load-path "~/.emacs.d/emmet-mode")
 
-
-
-(require 'org)
-(add-to-list 'auto-mode-alist '("\\.org$" . org-mode))
-
-;; unbind C-, to use for moving the previous buffer
-(eval-after-load "org"
-  '(progn
-     (define-key org-mode-map (kbd "C-,") nil)))
-
-
-
-
-;;
-;; export
-;; 
-(setq org-export-latex-coding-system 'utf-8)
-(setq org-export-latex-date-format "%Y-%m-%d")
-(setq org-export-latex-classes nil)
-
-(setq org-latex-classes '(("jsarticle"
-                           "\\documentclass{jsarticle}
-\\usepackage[dvipdfmx]{graphicx}
-\\usepackage{url}
-\\usepackage{atbegshi}
-\\AtBeginShipoutFirst{\\special{pdf:tounicode EUC-UCS2}}
-\\usepackage[dvipdfmx,setpagesize=false]{hyperref}
- [NO-DEFAULT-PACKAGES]
- [PACKAGES]
- [EXTRA]"
-            ("\\section{%s}" . "\\section*{%s}")
-            ("\\subsection{%s}" . "\\subsection*{%s}")
-            ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
-            ("\\paragraph{%s}" . "\\paragraph*{%s}")
-            ("\\subparagraph{%s}" . "\\subparagraph*{%s}"))
-
-                          ("jsbook"
-                           "\\documentclass{jsbook}
-\\usepackage[dvipdfmx]{graphicx}
-\\usepackage{url}
-\\usepackage{atbegshi}
-\\AtBeginShipoutFirst{\\special{pdf:tounicode EUC-UCS2}}
-\\usepackage[dvipdfmx,setpagesize=false]{hyperref}
- [NO-DEFAULT-PACKAGES]
- [PACKAGES]
- [EXTRA]"
-            ("\\chapter{%s}" . "\\chapter*{%s}")
-            ("\\section{%s}" . "\\section*{%s}")
-            ("\\subsection{%s}" . "\\subsection*{%s}")
-            ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
-            ("\\paragraph{%s}" . "\\paragraph*{%s}")
-            ("\\subparagraph{%s}" . "\\subparagraph*{%s}"))))
-
-
-(setq org-export-latex-packages-alist
-  '(("AUTO" "inputenc"  t)
-    ("T1"   "fontenc"   t)
-    ))
-
-
-;; latex を処理するコマンド
-(setq org-latex-pdf-process
-      '("~/shdir/tex2pdf %b.tex"))
-
-;; 25.1.1
-(defvar tex-compile-commands 
-  '(
-    ("tex2pdf %f")
-    ("tex2pdf-landscape %f")))
-
-;; 24.5.1 ??
-(setq tex-compile-commands
-      '(
-        ("platex %b.tex && platex %b.tex && dvipdfmx %b.dvi")
-        ("tex2pdf %f")))
-
-;; 24.3.1 ??
-(setq tex-compile-commands
-      '(
-        ("platex %r.tex && platex %r.tex && dvipdfmx %r.dvi")
-        ("tex2pdf %f")))
-
-;; load-path を追加する関数を定義
-(defun add-to-load-path (&rest paths)
-  (let (path)
-    (dolist (path paths paths)
-      (let ((default-directory
-              (expand-file-name (concat user-emacs-directory path))))
-        (add-to-list 'load-path default-directory)
-        (if (fboundp 'normal-top-level-add-subdirs-to-load-path)
-            (normal-top-level-add-subdirs-to-load-path))))))
+;==========================================
+; emmet-mode (for HTML)
+;==========================================
+(require 'emmet-mode)
+(add-hook 'sgml-mode-hook 'emmet-mode) ;; マークアップモードで自動的に emmet-mode をたちあげる
+(add-hook 'emmet-mode-hook (lambda () (setq emmet-indentation 2))) ;; indent 2 spaces
+(setq emmet-move-cursor-between-quotes t) ;; 最初のクオートの中にカーソルをぶちこむ
 
 
 
@@ -294,222 +168,30 @@
 (setq ac-use-fuzzy t)          ;; 曖昧マッチ
 
 
-;; ツールバーを非表示
-(menu-bar-mode 0)
-(scroll-bar-mode 0)
+(add-to-list 'load-path
+              "~/.emacs.d/elpa/yasnippet")
+(require 'yasnippet)
+(yas-reload-all)
+(add-hook 'prog-mode-hook #'yas-minor-mode)
 
+;; 自分用・追加用テンプレート -> mysnippetに作成したテンプレートが格納される
+(require 'yasnippet)
+(setq yas-snippet-dirs
+      '("~/.emacs.d/mysnippets"
+        "~/.emacs.d/snippets"
+        ))
 
-;;同様のフォント設定があればコメントアウトしておくべき
-(add-to-list 'default-frame-alist '(font . "ricty-13.5"))
+;; 既存スニペットを挿入する
+(define-key yas-minor-mode-map (kbd "C-x i i") 'yas-insert-snippet)
+;; 新規スニペットを作成するバッファを用意する
+(define-key yas-minor-mode-map (kbd "C-x i n") 'yas-new-snippet)
+;; 既存スニペットを閲覧・編集する
+(define-key yas-minor-mode-map (kbd "C-x i v") 'yas-visit-snippet-file)
 
-;;コメントアウト
-(setq comment-style 'multi-line)
-;; reload buffer
-(global-set-key (kbd "<f5>") 'revert-buffer-no-confirm)
-
-
-;; ;;
-;; ;; TeX mode
-;; ;;
-;; (setq auto-mode-alist
-;;       (append '(("\\.tex$" . latex-mode)) auto-mode-alist))
-;; (setq tex-default-mode 'latex-mode)
-;; (setq tex-start-commands "\\nonstopmode\\input")
-;; (setq tex-run-command "ptex2pdf -u -e -ot '-synctex=1 -interaction=nonstopmode'")
-;; (setq latex-run-command "ptex2pdf -u -l -ot '-synctex=1 -interaction=nonstopmode'")
-;; (setq tex-bibtex-command "latexmk -e '$latex=q/uplatex %O -synctex=1 -interaction=nonstopmode %S/' -e '$bibtex=q/upbibtex %O %B/' -e '$biber=q/biber %O --bblencoding=utf8 -u -U --output_safechars %B/' -e '$makeindex=q/upmendex %O -o %D %S/' -e '$dvipdf=q/dvipdfmx %O -o %D %S/' -norc -gg -pdfdvi")
-;; (require 'tex-mode)
-;; (defun tex-view ()
-;;   (interactive)
-;;   (tex-send-command "evince" (tex-append tex-print-file ".pdf") " &"))
-;; (defun tex-print (&optional alt)
-;;   (interactive "P")
-;;   (if (tex-shell-running)
-;;       (tex-kill-job)
-;;     (tex-start-shell))
-;;   (tex-send-command "evince" (tex-append tex-print-file ".pdf") " &"))
-;; (setq tex-compile-commands
-;;       '(("ptex2pdf -u -l -ot '-synctex=1 -interaction=nonstopmode' %f" "%f" "%r.pdf")
-;;         ("uplatex -synctex=1 -interaction=nonstopmode %f && dvips -Ppdf -z -f %r.dvi | convbkmk -u > %r.ps && ps2pdf %r.ps" "%f" "%r.pdf")
-;;         ("pdflatex -synctex=1 -interaction=nonstopmode %f" "%f" "%r.pdf")
-;;         ("lualatex -synctex=1 -interaction=nonstopmode %f" "%f" "%r.pdf")
-;;         ("luajitlatex -synctex=1 -interaction=nonstopmode %f" "%f" "%r.pdf")
-;;         ("xelatex -synctex=1 -interaction=nonstopmode %f" "%f" "%r.pdf")
-;;         ("latexmk %f" "%f" "%r.pdf")
-;;         ("latexmk -e '$latex=q/uplatex %%O -synctex=1 -interaction=nonstopmode %%S/' -e '$bibtex=q/upbibtex %%O %%B/' -e '$biber=q/biber %%O --bblencoding=utf8 -u -U --output_safechars %%B/' -e '$makeindex=q/upmendex %%O -o %%D %%S/' -e '$dvipdf=q/dvipdfmx %%O -o %%D %%S/' -norc -gg -pdfdvi %f" "%f" "%r.pdf")
-;;         ("latexmk -e '$latex=q/uplatex %%O -synctex=1 -interaction=nonstopmode %%S/' -e '$bibtex=q/upbibtex %%O %%B/' -e '$biber=q/biber %%O --bblencoding=utf8 -u -U --output_safechars %%B/' -e '$makeindex=q/upmendex %%O -o %%D %%S/' -e '$dvips=q/dvips %%O -z -f %%S | convbkmk -u > %%D/' -e '$ps2pdf=q/ps2pdf %%O %%S %%D/' -norc -gg -pdfps %f" "%f" "%r.pdf")
-;;         ("latexmk -e '$pdflatex=q/pdflatex %%O -synctex=1 -interaction=nonstopmode %%S/' -e '$bibtex=q/bibtex %%O %%B/' -e '$biber=q/biber %%O --bblencoding=utf8 -u -U --output_safechars %%B/' -e '$makeindex=q/makeindex %%O -o %%D %%S/' -norc -gg -pdf %f" "%f" "%r.pdf")
-;;         ("latexmk -e '$lualatex=q/lualatex %%O -synctex=1 -interaction=nonstopmode %%S/' -e '$bibtex=q/upbibtex %%O %%B/' -e '$biber=q/biber %%O --bblencoding=utf8 -u -U --output_safechars %%B/' -e '$makeindex=q/upmendex %%O -o %%D %%S/' -norc -gg -pdflua %f" "%f" "%r.pdf")
-;;         ("latexmk -e '$lualatex=q/luajitlatex %%O -synctex=1 -interaction=nonstopmode %%S/' -e '$bibtex=q/upbibtex %%O %%B/' -e '$biber=q/biber %%O --bblencoding=utf8 -u -U --output_safechars %%B/' -e '$makeindex=q/upmendex %%O -o %%D %%S/' -norc -gg -pdflua %f" "%f" "%r.pdf")
-;;         ("latexmk -e '$xelatex=q/xelatex %%O -synctex=1 -interaction=nonstopmode %%S/' -e '$bibtex=q/upbibtex %%O %%B/' -e '$biber=q/biber %%O --bblencoding=utf8 -u -U --output_safechars %%B/' -e '$makeindex=q/upmendex %%O -o %%D %%S/' -norc -gg -pdfxe %f" "%f" "%r.pdf")
-;;         ((concat "\\doc-view" " \"" (car (split-string (format "%s" (tex-main-file)) "\\.")) ".pdf\"") "%r.pdf")
-;;         ("xdg-open %r.pdf &" "%r.pdf")
-;;         ("evince %r.pdf &" "%r.pdf")
-;;         ("okular --unique %r.pdf &" "%r.pdf")
-;;         ("zathura -x \"emacsclient --no-wait +%%{line} %%{input}\" %r.pdf &" "%r.pdf")
-;;         ("qpdfview --unique %r.pdf &" "%r.pdf")
-;;         ("texworks %r.pdf &" "%r.pdf")
-;;         ("texstudio --pdf-viewer-only %r.pdf" "%r.pdf")
-;;         ("mupdf %r.pdf &" "%r.pdf")
-;;         ("firefox -new-window %r.pdf &" "%r.pdf")
-;;         ("chromium --new-window %r.pdf &" "%r.pdf")))
-
-;; (defun evince-forward-search ()
-;;   (interactive)
-;;   (let* ((ctf (buffer-name))
-;;          (mtf (tex-main-file))
-;;          (pf (concat (car (split-string mtf "\\.")) ".pdf"))
-;;          (ln (format "%d" (line-number-at-pos)))
-;;          (cmd "fwdevince")
-;;          (args (concat "\"" pf "\" " ln " \"" ctf "\"")))
-;;     (message (concat cmd " " args))
-;;     (process-kill-without-query
-;;      (start-process-shell-command "fwdevince" nil cmd args))))
-
-;; (add-hook 'latex-mode-hook
-;;           '(lambda ()
-;;              (define-key latex-mode-map (kbd "C-c e") 'evince-forward-search)))
-
-;; (require 'dbus)
-
-;; (defun un-urlify (fname-or-url)
-;;   "A trivial function that replaces a prefix of file:/// with just /."
-;;   (if (string= (substring fname-or-url 0 8) "file:///")
-;;       (substring fname-or-url 7)
-;;     fname-or-url))
-
-;; (defun evince-inverse-search (file linecol &rest ignored)
-;;   (let* ((fname (decode-coding-string (url-unhex-string (un-urlify file)) 'utf-8))
-;;          (buf (find-file fname))
-;;          (line (car linecol))
-;;          (col (cadr linecol)))
-;;     (if (null buf)
-;;         (message "[Synctex]: %s is not opened..." fname)
-;;       (switch-to-buffer buf)
-;;       (goto-line (car linecol))
-;;       (unless (= col -1)
-;;         (move-to-column col))
-;;       (x-focus-frame (selected-frame)))))
-
-;; (dbus-register-signal
-;;  :session nil "/org/gnome/evince/Window/0"
-;;  "org.gnome.evince.Window" "SyncSource"
-;;  'evince-inverse-search)
-
-;; (defun okular-forward-search ()
-;;   (interactive)
-;;   (let* ((ctf (buffer-file-name))
-;;          (mtf (tex-main-file))
-;;          (pf (concat (car (split-string mtf "\\.")) ".pdf"))
-;;          (ln (format "%d" (line-number-at-pos)))
-;;          (cmd "okular")
-;;          (args (concat "--unique \"file:" pf "#src:" ln " " ctf "\"")))
-;;     (message (concat cmd " " args))
-;;     (process-kill-without-query
-;;      (start-process-shell-command "okular" nil cmd args))))
-
-;; (add-hook 'latex-mode-hook
-;;           '(lambda ()
-;;              (define-key latex-mode-map (kbd "C-c o") 'okular-forward-search)))
-
-;; (defun zathura-forward-search ()
-;;   (interactive)
-;;   (let* ((ctf (buffer-name))
-;;          (mtf (tex-main-file))
-;;          (pf (concat (car (split-string mtf "\\.")) ".pdf"))
-;;          (ln (format "%d" (line-number-at-pos)))
-;;          (cmd "zathura")
-;;          (args (concat "--synctex-forward " ln ":0:" ctf " " pf)))
-;;     (message (concat cmd " " args))
-;;     (process-kill-without-query
-;;      (start-process-shell-command "zathura" nil cmd args))))
-
-;; (add-hook 'latex-mode-hook
-;;           '(lambda ()
-;;              (define-key latex-mode-map (kbd "C-c z") 'zathura-forward-search)))
-
-;; (defun qpdfview-forward-search ()
-;;   (interactive)
-;;   (let* ((ctf (buffer-name))
-;;          (mtf (tex-main-file))
-;;          (pf (concat (car (split-string mtf "\\.")) ".pdf"))
-;;          (ln (format "%d" (line-number-at-pos)))
-;;          (cmd "qpdfview")
-;;          (args (concat "--unique \"" pf "#src:" ctf ":" ln ":0\"")))
-;;     (message (concat cmd " " args))
-;;     (process-kill-without-query
-;;      (start-process-shell-command "qpdfview" nil cmd args))))
-
-;; (add-hook 'latex-mode-hook
-;;           '(lambda ()
-;;              (define-key latex-mode-map (kbd "C-c q") 'qpdfview-forward-search)))
-
-;;
-;; RefTeX with TeX mode
-;;
-(add-hook 'latex-mode-hook 'turn-on-reftex)
-
-
-;;
-;; backup の保存先
-;;
-(setq backup-directory-alist
-  (cons (cons ".*" (expand-file-name "~/.emacs.d/backup"))
-        backup-directory-alist))
-
-
-(setq auto-save-file-name-transforms
-  `((".*", (expand-file-name "~/.emacs.d/backup/") t)))
-
-(require 'zlc)
-(zlc-mode 1)
-(let ((map minibuffer-local-map))
-  ;;; like menu select
-  (define-key map (kbd "C-n")  'zlc-select-next-vertical)
-  (define-key map (kbd "C-p")    'zlc-select-previous-vertical)
-  (define-key map (kbd "C-f") 'zlc-select-next)
-  (define-key map (kbd "C-b")  'zlc-select-previous)
-
-  ;;; reset selection
-  (define-key map (kbd "C-c") 'zlc-reset)
-  )
-(require `quickrun)
-(global-set-key (kbd "C-c C-r") 'quickrun)
-
-(global-set-key (kbd "C-x C-p") 'count-words-region)
-
-
-
-;; (global-hl-line-mode t)
-
-;; markdown-mode
-;; m-x package-list-package, install markdown-mode | once
-(setq auto-mode-alist (cons '("\\.md" . markdown-mode) auto-mode-alist))
-;; (setq auto-mode-alist
-;;       (append '(("\\.md$" . yatex-mode)
-;;                 ("\\.txt$" . yatex-mode)) auto-mode-alist))
-(autoload 'markdown-mode "markdown-mode.el" "Major mode for editing Markdown files" t)
-(setq auto-mode-alist (cons '("\\.txt" . markdown-mode) auto-mode-alist))
-
-(dolist (dir (list
-              "/sbin"
-              "/usr/sbin"
-              "/bin"
-              "/usr/bin"
-              "/opt/local/bin"
-              "/sw/bin"
-              "/usr/local/bin"
-              (expand-file-name "~/bin")
-              (expand-file-name "~/.emacs.d/bin")
-              ))
- (when (and (file-exists-p dir) (not (member dir exec-path)))
-   (setenv "PATH" (concat dir ":" (getenv "PATH")))
-   (setq exec-path (append (list dir) exec-path))))
-(autoload 'markdown-preview-mode "markdown-preview-mode.el" t)
+(yas-global-mode 1)
 
 (setq x-select-enable-clipboard t)
 (transient-mark-mode t)
-
 
 ;; system-type predicates
 ;; from http://d.hatena.ne.jp/tomoya/20090807/1249601308
@@ -532,18 +214,17 @@
 
 (setq interprogram-cut-function 'paste-to-osx)
 (setq interprogram-paste-function 'copy-from-osx)
-
-
-;; markdown-mode
-;; m-x package-list-package, install markdown-mode | once
-(setq auto-mode-alist (cons '("\\.md" . markdown-mode) auto-mode-alist))
-;; (setq auto-mode-alist
-;;       (append '(("\\.md$" . yatex-mode)
-;;                 ("\\.txt$" . yatex-mode)) auto-mode-alist))
-
-(add-to-list 'auto-mode-alist '(".*\\.js\\'" . rjsx-mode))
-(add-hook 'rjsx-mode-hook
-          (lambda ()
-            (setq indent-tabs-mode nil) ;;インデントはタブではなくスペース
-            (setq js-indent-level 2) ;;スペースは２つ、デフォルトは4
-            (setq js2-strict-missing-semi-warning nil))) ;;行末のセミコロンの警告はオフ
+(custom-set-variables
+ ;; custom-set-variables was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(custom-safe-themes
+   (quote
+    ("045419c57614f4e0de1b7fadbcf2e0c44849e1c877a5d3e0b861ac2ab59a3507" default))))
+(custom-set-faces
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ )

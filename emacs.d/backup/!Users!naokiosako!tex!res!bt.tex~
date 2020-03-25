@@ -1,0 +1,360 @@
+
+
+%% 参考文献の名前とかの書き方揃える！！
+
+\documentclass[a4paper, twocolumn]{jsarticle}
+%\usepackage{newenum}
+\usepackage[dvipdfmx]{graphicx}
+%\usepackage{reducevskip}
+\usepackage{url}
+
+\pagestyle{plain}
+
+%高さ
+\setlength{\textheight}{\paperheight}
+\setlength{\topmargin}{-30.0truemm}
+%% \addtolength{\topmargin}{-\headheight}
+%% \addtolength{\topmargin}{-\headsep}
+\addtolength{\textheight}{-25truemm} % 段組の縦幅？
+                                %% 変更する最終手段
+
+%幅
+\setlength{\textwidth}{\paperwidth}
+\setlength{\oddsidemargin}{-10.4truemm}
+\setlength{\evensidemargin}{-10.4truemm}
+\addtolength{\textwidth}{-32truemm} % 段組の幅
+
+\renewcommand{\baselinestretch}{0.87}
+% 本文と図のスペース
+\setlength\textfloatsep{0.5em} % 下
+%\setlength\intextsep{10pt} % 上
+
+
+\makeatletter
+  % sectionの下マージンを小さく
+  \renewcommand{\section}{%
+    \@startsection{section}{1}{\z@}%
+    {0.3\Cvs}{0.2\Cvs}%
+    {\normalfont\large\headfont\raggedright}}
+\makeatother
+
+\begin{document}
+%\setlength{\baselineskip}{11pt} 
+
+
+\twocolumn[
+\begin{flushright}
+卒業研究審査会 2018 年 2 月 20 日
+\end{flushright}
+\vspace{4pt}
+\begin{center}
+ \bf
+    {\LARGE モンゴメリ法及び並列化を適用した \\
+      耐サイドチャネル攻撃RSA復号回路の高位合成
+}
+\end{center}
+\begin{center}
+ \large{石浦研究室 4556 大窄 直樹}\\
+\end{center}
+\bigskip
+]
+
+\pagestyle{empty}
+
+
+\section{\normalsize{はじめに}}
+IoT (Internet of Things) 向け組込み機器の増加に伴い, 暗号回路のサイドチャネル攻撃への対策が重要な課題となっている. 文献 \cite{ota} では, Fournaris のアルゴリズム \cite{Fournaris} に基づき, サイドチャネル攻撃に耐性を持つRSAの復号回路を高位合成により設計する手法を提案しているが, 
+攻撃に耐性を持たせるために, 復号回路の規模, 実行時間が大幅に増加している. 本研究では, モンゴメリ法及び並列化により, サイドチャネル攻撃に耐性を持つ RSA 復号回路の高速化と回路規模の削減を試みる \cite{sasimi} .
+
+
+%% \section{準備　後でタイトル考える}
+
+%% モンゴメリ法は剰余算を行うアルゴリズムである. 
+%% ACAPは, MIPS 用 GCC で得られるアセンブリをCDFG (Control Data Flow Graph) に変換し, データフロー解析, スケジューリング, バインディングを行い最終的にVerilog HDLを出力する. 
+
+%モンゴメリ法では定数R を2 の冪乗数とすることで, 加算, 乗算, シフト演算のみで剰余算を計算することができる.
+
+
+\section{ \normalsize{耐サイドチャネル攻撃RSA復号回路の高位合成}}
+Fournaris のアルゴリズム (図 \ref{CRTRSA}) \cite{Fournaris}は, RSA復号処理のサイドチャネル攻撃に対する脆弱性の解決を図ったものであり, 一般的な単純電力解析攻撃や差分電力解析攻撃の他, Bellcore攻撃, KQ攻撃, YLMH攻撃等の故障利用攻撃への耐性を持つ. %% ACAP は, MIPS用GCCで得られるアセンブリをCDFGに変換し, データフロー解析, スケジューリング, バインディングを行い最終的にVerilog HDLを出力する.
+\cite{ota}は, 多倍長整数演算ライブラリGMPを用いてFournaris のアルゴリズムをC言語で記述し, これを高位合成システムACAP \cite{acap} で合成することにより耐サイドチャネル攻撃RSA復号回路を設計している.
+%多倍長整数演算ライブラリ GMP を高位合成用に書き換えたものを用いる. 
+%% 多倍長整数演算ライブラリGMP(GNU Multi-Precision Library) を高位合成用に書き換えたものを用いて, \cite{ota}のRSA復号回路のC言語のプログラムにモンゴメリ法, 及び並列化を適用したものをバイナリ合成システムACAP \cite{acap}で合成する.
+  
+\section{\normalsize{モンゴメリ法適用及び並列化}}
+本研究では, モンゴメリ法の適用と並列化により \cite{ota} のRSA復号回路を効率化する. 
+図 \ref{CRTRSA} 中の乗算剰余演算 ($x\cdot y \bmod M$) を全てモンゴメリ法での計算に変更するとともに, モンゴメリ法で使用する$R,~p,~q$ 等を事前に計算して定数として与える.
+図 \ref{CRTRSA} の$ \textcircled{\scriptsize2} $に2箇所あるFSCAMEにはデータ依存がないので並列に計算する.
+これは, FSCAME を計算する回路モジュールを作成し, 一方のFSCAMEの計算開始と同時にこれを起動することにより実現する. 
+% またFournarisのアルゴリズムでは, RSAの素数p, q に対して耐攻撃 モンゴメリ冪剰余算を計算している. 一般に冪乗余算は, 計算に時間がかかる. この計算を並列化することによって耐攻撃 モンゴメリ冪剰余算の回路が2 個になり回路規模は増加するが実行時間を短くすることができる.
+
+
+
+\section{\normalsize{合成結果}}
+%% バイナリ合成システムACAP \cite{acap}でモンゴメリ法及び並列化を適用した耐サイドチャネルRSA復号回路を生成する.
+%% ACAP は, MIPS用GCCで得られるアセンブリをCDFGに変換し, データフロー解析, スケジューリング, バインディングを行い最終的にVerilog HDLを出力する. 
+本研究の手法により記述したCプログラムをACAPで高位合成し, Xilinx Vivado (2016.4) でFPGA (kintex-7 xc7k70) をターゲットとして論理合成した. 結果を表 \ref{mong} に示す.
+RSAは攻撃に耐性のないの回路,
+SRRは \cite{ota} の回路,
+SRR+MはSRRにモンゴメリ法を適用した回路,
+SRR+M+PはSRR+Mに並列化を適用した回路である.
+cyclesは128 ビット復号処理に要したサイクル数である.
+モンゴメリ法の適用により回路規模を約68\%に削減できた.
+並列化により回路規模はSRRの1.35倍になったが, サイクル数は56\%に削減できた.
+ 結果, RSAの約5.17倍の実行時間, 約1.94倍の回路規模でサイドチャネル攻撃耐性を持たせることができた.
+%% ``SRRは, ``RSA'' と比べ約9.97倍の実行時間で, 約1.43倍の回路規模になったのに対し, ``SRR+M''は, 約5.16倍の実行時間で, 約0.98倍の回路規模となり回路規模の減少ができ,
+%% ``SRR+M+P''は, 約5.16倍の実行時間で, 約2.84倍の回路規模となり高速化できた.
+%% また``HW-SRR+M''は``MIPS-SRR+M''と比べ, 約3.60倍のLUT 数で, 実行時間を0.17倍に高速化できた.
+
+%% ``SRR+M''は, 約1.08倍の実行時間で, 回路規模を約68\% に削減できた. 
+%% ``SRR+M+P'' は``SRR'' と比べLUT数は約1.98倍で, 実行時間を約56\%に削減できる.
+%% ``SRR+M'' のHWとMIPSと比べた場合, 約3.60倍のLUT 数で, 実行時間を約17\%に削減できる.
+
+        %% HW & RSA         & 11,721&   9.275  & 68,261 \\  
+        %% & SRR \cite{ota}            & 16,801 & 12.907 & 627,615 \\   
+        %% & SRR+M          & 11,464 & 9.480    & 680,284 \\ 
+        %% & SRR+M+P    &   22,727  &  9.470 & 352,486 \\   \hline
+ %% MIPS & SRR + M       & 3,180  & 8.222 & 4,183,457 \\   \hline
+
+ 
+
+
+
+
+\section{\normalsize{むすび}}
+本研究では, モンゴメリ法及び並列化により耐サイドチャネル攻撃RSA復号回路の効率化を行った. 今後の課題としては, 耐攻撃性の評価及び回路の更なる効率化が挙がられる.
+%\newline
+\begin{figure}[t]
+  \begin{center}
+    \renewcommand{\baselinestretch}{0.75}
+    %\begin{footnotesize}
+    \begin{scriptsize}
+      \begin{tabular}{|l|}
+        \hline
+        \begin{tabular}{l}
+          \hfil\textbf{$ \textcircled{\tiny1} $ 耐攻撃 Montgomery 冪剰余算}\rule{0em}{1.3em}\smallskip\\
+          \textbf{Function}: FSCAME\\
+          ~ \textbf{Input}: $c, b, b^{-1}, d = (1, d_{t-2}, ...d_0), M$ \\
+          ~ \textbf{Output}: $(s_0,s_1,s_2,s_4)$\\
+          %% ~ // $s_0=b^{e}\cdot c^{e}\mod M$, ~~~$s_1=b^{\bar{e}+1}\cdot c^{\bar{e}+1}\mod M$\\
+          %% ~ // $s_2=b^{2^t}\cdot c^{2^t}\mod M$, ~$s_4=b^{-e}\mod M$\smallskip\\
+          ~ $R = 2^{n+2}$;
+          ~ $T = R^2  \bmod M$;\\
+          ~ $b_R = b\cdot R \bmod M$;\\
+          ~ $b_{R-1} = b^{-1}\cdot R\bmod M$;\smallskip\\
+
+          ~ $s_0 = s_1 = b_R$; \\
+          ~ $T_R = T\cdot c\cdot R^{-1}\bmod M$; \\
+          ~ $s_2 = b_R\cdot T_R\cdot R^{-1}\bmod M$; \\
+          ~ $s_3 = s_4 = s_5 = b_{R-1}$; \\
+          ~ \textbf{for} ($i=0$ to $t-1$) \{\\
+
+          ~ ~ \textbf{if} ($d_i = 1$) \{\\
+          ~ ~ ~ $s_0 = s_0\cdot s_2\cdot R^{-1}\bmod M$;  
+          ~ $s_4 = s_4\cdot s_3\cdot R^{-1}\bmod M$;  \\
+          ~ ~ \} \textbf{else} \{\\
+          ~ ~ ~ $s_1 = s_1\cdot s_2\cdot R^{-1}\bmod M$;  
+          ~ $s_5 = s_5\cdot s_3\cdot R^{-1}\bmod M$;  \\
+          ~ ~ \}\\
+          ~ ~ $s_2 = s_2^2\cdot R^{-1}\bmod M$;   
+          ~ ~ $s_3 = s_3^2\cdot R^{-1}\bmod M$;  \\
+          ~ \}\\
+          ~ $s_0 = s_0\cdot b^{-1}\cdot R^{-1}\bmod M$;  
+          ~ $s_1 = s_1\cdot c\cdot R^{-1}\bmod M$; \\
+          ~ $s_2 = s_2\cdot 1\cdot R^{-1}\bmod M$; 
+          ~ $s_4 = s_4\cdot b\cdot R^{-1}\bmod M$; \smallskip \\
+          ~ \textbf{if} ($i$ and $d$ are not modified \textbf{and}\\
+          ~ ~ ~ ~ $s_0\cdot s_1\cdot R^{-1}\bmod M = s_2\cdot 1\cdot R^{-1}\bmod M$) \\
+          ~ ~ \{ \textbf{return} $(s_0, s_1, s_2, s_4)$; \}
+          \textbf{else} \{ \textbf{return} error; \}\smallskip\\
+        \end{tabular}%
+        \\\hline
+        \begin{tabular}{l}
+          \hfil\textbf{$ \textcircled{\tiny2} $ RSA 復号}\rule{0em}{1.3em}\smallskip\\
+          \textbf{Input}: $c, b, b^{-1}, p, q, d_p, d_q, i_q = q^{-1}\bmod p, N$ \\
+          \textbf{Output}: $c^d\bmod N$ \smallskip\\
+          $(s_0^p, s_1^p, s_2^p, s_4^p) = \mbox{FSCAME} (c, b, b^{-1}, d_p, p)$; \\
+          $(s_0^q, s_1^q, s_2^q, s_4^q) = \mbox{FSCAME} (c, b, b^{-1}, d_q, q)$; \\
+          $S_0 = s_0^q + q\cdot ((s_0^p - s_0^q)\cdot i_q\bmod p)$; \\
+          $S_1 = s_1^q + q\cdot ((s_1^p - s_1^q)\cdot i_q\bmod p)$; \\
+          $S_2 = s_2^q + q\cdot ((s_2^p - s_2^q)\cdot i_q\bmod p)$; \\
+          $S_4 = s_4^q + q\cdot ((s_4^p - s_4^q)\cdot i_q\bmod p)$; \smallskip\\ 
+          \textbf{if} ($S_0\cdot S_1\bmod N = S_2$ \textbf{and} p, q not modified) \\
+          ~ \{ \textbf{return} $(S_0\cdot S_4 \bmod N)$; \}
+          \textbf{else} \{ \textbf{return} error; \}\smallskip\\
+        \end{tabular}%
+        \\\hline
+      \end{tabular}%
+      \smallskip
+      \caption{\small Fournarisのアルゴリズム \cite{Fournaris}}
+      \label{CRTRSA}
+      %\end{footnotesize}
+    \end{scriptsize}
+  \end{center}
+\end{figure}
+
+\vspace{5pt}
+%% \begin{table}[t]
+%%   \begin{center}
+%%     \begin{footnotesize}
+%%       \caption{\small 合成結果.}\label{mong}
+%%       \vspace{5pt}
+%%       \begin{tabular}{|l|r|r|r|}
+%%         \hline
+%%         \multicolumn{1}{|c|}{code}&  \multicolumn{1}{|c|}{\#LUT}& \multicolumn{1}{|c|}{delay [ns] }& \multicolumn{1}{|c|}{cycles}\\ \hline 
+%%         RSA         & 11,721&   9.275  & 68,261 \\  
+%%         SRR \cite{ota}            & 16,801 & 12.907 & 627,615 \\   
+%%         SRR+M          & 11,464 & 9.480    & 680,284 \\ 
+%%         SRR+M+P    &   22,727  &  9.388 & 353,489 \\   \hline
+%%       \end{tabular}
+%%     \end{footnotesize}
+%%   \end{center}
+%% \end{table}
+
+\begin{table}[t]
+  \begin{center}
+    \begin{footnotesize}
+      \caption{\small 合成結果}\label{mong}
+      \vspace{5pt}
+      \begin{tabular}{|l|r|r|r|}
+        \hline
+        \multicolumn{1}{|c|}{code}&  \multicolumn{1}{|c|}{cycles}& \multicolumn{1}{|c|}{動作周波数 [MHz] }& \multicolumn{1}{|c|}{\#LUT}\\ \hline 
+        RSA         &68,261 &   107.8  & 11,721 \\  
+        SRR \cite{ota}            & 627,615  & 77.5 &16,801 \\   
+        SRR+M          & 680,284 & 105.5    &11,464  \\ 
+        SRR+M+P    &   353,489 &  105.6 & 22,590  \\   \hline
+      \end{tabular}
+    \end{footnotesize}
+  \end{center}
+\end{table}
+
+
+
+  %% \begin{table}[h]
+  %%    \begin{center}
+  %%      \begin{footnotesize}
+  %%        \caption{\small 合成結果.}\label{mong}
+  %%        \vspace{5pt}
+  %%        \begin{tabular}{|l|l|r|r|r|}
+  %%          \hline
+  %%          \multicolumn{1}{|c|}{}& \multicolumn{1}{|c|}{code}&  \multicolumn{1}{|c|}{\#LUT}& \multicolumn{1}{|c|}{delay [ns] }& \multicolumn{1}{|c|}{cycles}\\ \hline 
+  %%          HW&RSA         & 11,721&   9.275  & 68,261 \\  
+  %%          &SRR  & 16,801 & 12.907 & 627,615 \\   
+  %%          &SRR (モンゴメリ)          & 11,464 & 9.480    & 680,284 \\ 
+  %%          &SRR (モンゴメリ+並列化)    &   22,727  &  9.388 & 353,489 \\   \hline
+  %%     MIPS & SRR (モンゴメリ) & 3,180  & 8.222 & 4,183,457 \\   \hline  
+  %%        \end{tabular}
+  %%      \end{footnotesize}
+  %%    \end{center}
+  %%  \end{table}
+
+
+%%cycle353489 lut1 18659 9362lut2 delay 9.388         & SRR+M+P    &   33,332  &  9.439 & 352,486 \\   \hline 9.470
+% \par
+
+
+
+%% \vspace{5pt}
+%% \begin{table}[t]
+%%   \begin{center}
+%%     \begin{footnotesize}
+%%       \caption{\small 合成結果.}\label{mong}
+%%       \vspace{5pt}
+%%       \begin{tabular}{|l|r|r|r|}
+%%         \hline
+%%         \multicolumn{1}{|c|}{code}&  \multicolumn{1}{|c|}{\#LUT}& \multicolumn{1}{|c|}{delay [ns] }& \multicolumn{1}{|c|}{cycles}\\ \hline 
+%%         RSA         & 11,721&   9.275  & 68,261 \\  
+%%         SRR \cite{ota}            & 16,801 & 12.907 & 627,615 \\   
+%%         SRR+M          & 11,464 & 9.480    & 680,284 \\ 
+%%         SRR+M+P    &   28,021  &  9.388 & 353,489 \\   \hline
+%%       \end{tabular}
+%%     \end{footnotesize}
+%%   \end{center}
+%% \end{table}
+
+  \begin{small}
+    \begin{thebibliography}{9}
+
+    %% \bibitem{ito} 伊藤, 竹林, 神原, 石浦:
+    %% ``多倍長整数演算ライブラリをリンクしたバイナリコードからのRSA暗号回路の高位合成,''
+    %% 情処関西支部大会, A-04 (Sept.\ 2015).
+
+    \bibitem{ota}
+      太田, 由良, 石浦: ``電力解析攻撃/故障利用攻撃耐性RSA 復号回路の高位合成,'' 信学ソ大, A-6-6 (Sept.\ 2016).
+
+
+    \bibitem{Fournaris}
+      P. Fournaris, et al.:
+      ``Protecting CRT RSA against fault and power side channel attacks,''
+      in \textit{Proc.\ VLSI 2012}, pp.~159--164 (Aug.\ 2012).
+      
+\bibitem{sasimi} N. Osako, S. Ota, S. Yura and N. Ishiura:
+  ``High-level synthesis of side channel attack resistant RSA decryption circuit,''
+  in \textit{Proc.\ SASIMI 2018}
+  (Mar.\ 2018,  to appear).
+      
+    \bibitem{acap}
+      N. Ishiura, H. Kanbara, and H. Tomiyama:
+      ``ACAP: Binary synthesizer based on MIPS object codes,''
+      in \textit{Proc. ITC-CSCC 2014}, pp.~725--728 (July\ 2014).
+
+    \end{thebibliography}
+  \end{small}
+\end{document}
+
+
+%%   %%%%%%%%%%%%%%%%%%%%%
+%% \begin{figure}[h]
+%% %  \includegraphics[width=\linewidth]
+%%   \begin{center}
+%%     \renewcommand{\baselinestretch}{0.95}
+%%     \begin{small}
+      
+%%       \begin{tabular}{|l|}
+%%         \hline
+%%         \\
+%%         \textbf{事前計算}:~ $ N=pq, R, NN' = −1 mod R   $ ~~~~\\ \hline
+        
+%%         \begin{tabular}{l}
+%%           ~\hfil\textbf{モンゴメリリダクション}\rule{0em}{1.3em}\smallskip\\
+%%           ~~\textbf{Function}: MR\\
+%%           ~ \textbf{Input}: $t$ \\
+%%           ~ \textbf{Output}: $T = tR^{-1} mod N$\smallskip \\
+%%         \end{tabular}%
+%%         \\ 
+%%         \\
+
+%%         ~ $s = tN'mod R$;\\
+%%         ~ $T = ( t + sN ) / R$;\\
+%%         ~ \textbf{if}($T>= N$)\{\\
+%%         ~~~~ $T=T-N$;\\
+%%         ~~\} \\\\
+   
+
+%%         \\\hline
+
+%%         \begin{tabular}{l}
+%%           \hfil\textbf{モンゴメリ乗算}\rule{0em}{1.3em}\smallskip\\
+%%           ~~\textbf{Function}: MRMUL\\
+%%           ~~\textbf{Input}: $a, b$ \\ 
+%%           ~~\textbf{Output}: $res = ab mod N$ \smallskip\\\\
+%%           ~$A=MR(at)$\\
+%%           ~$B=MR(bt)$\\
+%%           ~$res = MR(MR(AB))$          \smallskip\\\\
+%%         \end{hline}%
+%%         \\\tabular
+
+        
+%%       \end{tabular}%
+
+
+%%       \smallskip
+%%       \caption{\small モンゴメリ法 }
+%%       \label{alg}
+%%     \end{small}
+%%   \end{center}
+%% \end{figure}
+
+
+
+

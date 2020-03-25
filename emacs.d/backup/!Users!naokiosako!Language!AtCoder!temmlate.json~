@@ -1,0 +1,13 @@
+{
+  "task": {
+    "program": ["main.cpp"],
+    "submit": "main.cpp",
+    "testdir": "test",
+    "cmd": "echo Hi!"
+  },
+  "contest": {
+    "static": [["gitignore", ".gitignore"]],
+    "cmd": "echo Ho!"
+  }
+}
+

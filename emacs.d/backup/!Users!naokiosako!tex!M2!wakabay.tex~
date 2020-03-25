@@ -1,0 +1,920 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%  石浦研究室 卒論・修論テンプレート 【門外不出】
+%  (最終更新 2017-11-28)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\documentclass[11pt]{jbook}
+\usepackage{ist-thesis}
+\usepackage[dvipdfmx]{graphicx}
+\usepackage{caption}
+\usepackage{listings}
+\usepackage{url}
+\usepackage{multirow}
+
+\lstset{
+  frame=single,
+  breaklines = true,
+  basicstyle=\small\ttfamily,
+  numbers=left,
+  numbersep=5pt,
+  tabsize=1,
+  extendedchars=true,
+  xleftmargin=17pt,
+  framexleftmargin=17pt,
+  lineskip = -0.5ex
+}
+%\thesistype{B}  % 卒業論文の場合
+\thesistype{M}  % 修士論文の場合
+
+\ID{M8327} % 学籍番号 (修論のときは先頭に M を付けるのを忘れないように)
+\author{若林秀和} % 著者名
+\supervisor{石浦 菜岐佐 教授} % 指導教員
+\yearmonth{2020年3月}  % 提出年月
+
+% 表紙でタイトルを改行したい場合は \PAR を入れる (内容梗概で改行されない)
+\title{プログラマブル SoC における\PAR Erlang からのハードウェア制御} % 邦題
+
+% 英文のアブストラクトを書かない場合は下記は省略可能
+%\eauthor{Taro Kwangaku} % 英著者名
+%\etitle{English Title English Title\PAR English Title English Title} % 英題
+
+\abstract{
+% 内容梗概は改段落しないので, \par は削除してね
+本論文では プログラマブル SoC における Erlang からのハードウェア制御方法を提案する.
+組込みシステムは近年益々高機能化・複雑化しており, 応答時間の短縮や多量の機器間通信に対応することが求められている.
+これに対し, Erlang のサブセットで記述しそこからハードウェアを自動合成する高位合成手法が提案されている. 
+この手法では Erlang から高位合成することで容易に並列動作を記述できるが, ハードウェア化するには多くの制限がある. 
+また, Eralng の記述全てをハードウェア化するため, Erlang の長所である軽量なメッセージ通信を活かすことができていない.
+本研究では, Erlang のメッセージ通信を利用してハードウェアを制御する方法を提案する.
+これは Erlang から外部プログラムを起動し, その外部プログラムにメッセージを送信することで実現する. 
+これにより, Erlang 側からはハードウェアを意識することなく, ハードウェアを制御することができる.
+本手法の効果を確認するために, ソフトウェアとハードウェアに簡単なニューラルネットワークを実装し Erlang から制御を行った結果,
+本手法により, 実行時間を短縮することが確認できた.
+}
+
+\keyword{Erlang, プログラマブルSoC}
+
+%\eabstract{
+%First paragraph. First paragraph. First paragraph. 
+%First paragraph. First paragraph. First paragraph. 
+%First paragraph. First paragraph. First paragraph. 
+%First paragraph. First paragraph. First paragraph. 
+%First paragraph. First paragraph. First paragraph. 
+%First paragraph. First paragraph. First paragraph. 
+%
+%Second paragraph. Second paragraph. Second paragraph. 
+%Second paragraph. Second paragraph. Second paragraph. 
+%Second paragraph. Second paragraph. Second paragraph. 
+%Second paragraph. Second paragraph. Second paragraph. 
+%
+%Third paragraph. Third paragraph. Third paragraph. 
+%Third paragraph. Third paragraph. Third paragraph. 
+%}
+%
+%\ekeyword{English, Abstract}
+
+\begin{document}
+
+\coverpage
+
+\tableofcontents
+
+\body
+
+\chapter{序論}
+組込みシステムは, 家電製品, 自動車, 医療用機関, 産業機器等, 多岐に渡る製品に内蔵されている. これらの製品に対する多種多様な要求に対応するため, 組込みシステムには益々高い機能や性能とともに, 処理速度の向上や効率的な設計手法が求められている. \par
+高位合成\cite{hls}はC言語等のプログラムからハードウェア記述を自動合成する技術である. 組込みシステムは一般にプロセッサ上で動作するソフトウェアおよびハードウェアの組み合わせで実装されるが, 消費電力の削減のために, ソフトウェアの一部あるいは全部をハードウェアで実装することがあり, 高位合成を利用して効率的に設計する方法が提案されている\cite{system}, \cite{cpu}.\par
+近年のネットワーク環境の普及, およびこれを活用した新たなサービスの拡大に伴い, 組込みシステムには単体での動作だけでなく, 他のシステムとの連携が求められるようになってきている. 組込みシステムの機能はこの点でも高度化しており, このようなシステムの仕様記述や効率的な設計手法も今後の重要な課題になると考えられる.\par
+この問題に対する一アプローチとして, Erlang \cite{erlang}等の並行処理プロセスに基づいたメッセージ処理指向言語を用いてシステムの制御を記述する方法が考えられる. Erlangは交換器の実装のために開発された言語で, 近年では大量のメッセージを捌くWebサービスの実装に用いられているが\cite{erlang_prog}, 並行プロセスとメッセージ通信によってイベントを簡潔に記述できるという点に注目し, 文献\cite{sasimi}, \cite{erlang_workshop}では, Erlangのプログラムからハードウェア記述を得る高位合成手法が提案されている.\par
+文献\cite{sasimi},\cite{erlang_workshop}の高位合成手法では Eralng からの高位合成手法を提案している. 並行処理指向言語である Erlang を利用することによって並列動作を容易に記述できるようにしている. しかし, 高位合成を行うためには使用できるプロセス数に上限がある, 回路規模が膨大になってしまうといった制限が多く, また Erlang の記述全てを合成してしまうため Erlang の長所である軽量かつ大量に行えるメッセージ通信が利用できなくなると言った問題がある.\par
+そこで本研究では, Erlang のメッセージ通信を利用してハードウェアを制御する方法を提案する. ハードウェアとソフトウェアの仲介役を担う外部プログラムに対して Erlang からメッセージを送信することによってハードウェアを制御する. これにより, Erlang 側からハードウェアを意識することなくハードウェアを制御することが可能になる. また, メッセージ通信を行う部分と計算量が大きい部分とを分けて実装することで, Erlang の長所を十分に発揮できるようになる.\par
+本手法を用いて, ソフトウェアとハードウェアにニューラルネットワークを実装してErlangから制御を行い, 実行時間の比較を行った. その結果, 本手法を用いて制御を行った時, 実行時間が短縮できることを確認した.\par
+
+\chapter{Erlang}
+\section{Erlang}
+Erlang \cite{erlang}は並行処理指向の関数型言語であり, この言語では動的に生成される複数のプロセスにより並行処理を記述する. プロセス間のデータ共有は, 共有メモリではなく非同期のメッセージ通信により行う. プロセスは非常に軽量であり, 多数のプロセスを生成して大量のメッセージを処理することができる. \par 
+Eralng では排他制御を実装する必要がないというのも特徴としてあげられる. 通常, C や C++ で並行プログラミングをする際には共有メモリへの同時アクセスを避けるために排他制御を実装する必要ある. しかし Erlang には共有メモリが存在せず, 各プロセスで変数などの情報の管理をこなっている. そのため, 排他制御を実装する必要がなくなり, プログラムを容易に並列化することができる.\par
+Erlangプログラムの例を図\ref{list}に示す. このプログラムでは, 2つのリストの内積を求める関数 {\tt iprod} を定義している. 小文字から始まる英数字列は関数名またはアトム (atom) と呼ばれる普遍定数を表し, 大文字から始まる英数字列は変数を表す. ``\verb#->#'' は関数の定義を表す. Erlangの変数は, 代入が1回限りの単一代入変数である. Erlangではデータ型として整数 (多倍長)
+ と浮動小数点数, およびそのタプル (要素数が固定; \{ \} で囲まれている) やリスト (要素数が可変; [ ] で囲まれてる) が用意されている.\par
+プロセスの生成は{\tt spawn}, メッセージの送受信は ! 演算と{\tt receive}により記述する. 図\ref{server}は円または長方形の面積を計算して返すプロセスの記述例である\cite{erlang}. {\tt start}を呼び出すと, 5行目の{\tt spawn}により7--18行目の{\tt loop}を実行するプロセスを生成し, そのプロセスIDを返す. 20行目のareaは, このプロセスID ({\tt Pid}) とデータ ({\tt Request}) を受け取って面積を返す. 21行目の ! 演算はメッセージの送信であり, プロセス{\tt Pid}にタプル {\tt \{self(), Request\}} を送ることを意味する. ここでは, 計算結果を返送してもらうために, 自身のプロセスID ({\tt self()}) をデータと一緒に面積計算プロセスに送っている. メッセージの受信は8--17行目および22--24行目のように{\tt receive}で記述し, 届いたメッセージのパターンにマッチする処理を行う. 受信にタイムアウトを指定することもできる. 今回の例では用いていないが, 生成したプロセスは {\tt register} 関数を用いることにより任意の関数からそのプロセスにアクセスできるようになる.\par
+送信されたメッセージは受信側のプロセスのメッセージキューに置かれる. メッセージを受信するプロセス側でreceive命令を実行した時, メッセージキューの先頭のメッセージを取り出しパターンマッチを行う. どのパターンともマッチしなかったらそのメッセージをメッセージキューから取り除いて, 保存用キューに置き, 次のメッセージのパターンマッチを行う. パターンに一致するメッセージが見つかるか, メッセージキューのすべてのメッセージの照合が終わるまでこの手順を繰り返す. メッセージキューのどのメッセージも一致しなければ, プロセスを一時停止して, 新しいメッセージがメッセージキューに置かれた時にプロセスが実行されるように再スケジュールする. この時, 保存用キューにあるメッセージの再照合は行われず, 新しく到着したメッセージのみ照合が行われる. 一致するメッセージが見つかると, 保存用キューに置かれていたすべてのメッセージはプロセスに来た時と同じ順番でメッセージキューに置かれる. \par
+
+
+\begin{figure}
+\begin{lstlisting}
+-module(iprod).
+-export([iprod/2]).
+
+iprod(A,B) -> iprod3(A,B,0).
+
+iprod3([],[],X) -> X;
+iprod3([AH|AT],[BH|BT],X) -> iprod3(AT,BT,AH*BH+X).
+\end{lstlisting}
+  \caption{リストの内積計算\cite{erlang}}
+  \label{list}
+\end{figure}
+
+\begin{figure}
+\begin{lstlisting}
+-module(area_server).
+-export([start/0, area/2]).
+
+start() ->
+  spawn(fun loop/0).
+
+loop() ->
+  receive
+    {From, {rectangle, Width, Ht}} ->
+	    From ! {self(), Width * Ht},
+	    loop();
+    {From, {circle, R}} ->
+	    From !  {self(), 3.14159 * R * R},
+	    loop();
+    {From, Other} ->
+	    From ! {self(), {error,Other}},
+	    loop()
+  end.
+
+area(Pid, Request) ->
+  Pid ! {self(), Request},
+  receive
+    {Pid, Response} ->
+      Response
+  end.
+\end{lstlisting}
+  \caption{面積を計算するサーバ\cite{erlang}}
+  \label{server}
+\end{figure}
+
+\section{Erlang からの高位合成}
+\subsection{高位合成}
+高位合成は, C 言語等による動作記述から論理合成可能なレジスタ転送レベルのハードウェア記述を自動合成する技術である \cite{hls}. \par
+図\ref{hls-flow} に一般的な高位合成の流れを示す. まず, 与えられた動作記述に対し, 字句解析と構文解析を行い, 中間表現を生成する. 中間表現には主に CDFG (control dataflow graph) が使用される. CDFG とは, 演算の依存関係を示した DFG (dataflow graph) 間の遷移等の制御情報を追加したものである. CDFG に, 演算の実行のタイミングを決定するスケジューリング, 演算器やレジスタの割り当てを決定するバインディングを行い, レジスタ転送レベル (RTL) の中間表現を生成する. 最後に, RTL 表現から論理合成可能な ハードウェア記述 (HDL: Hardware Description Language) を生成する. \par
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[scale=0.5]{images/hls-flow.eps}
+  \vspace{-0.5cm}
+  \caption{高位合成の処理の流れ}
+  \label{hls-flow}
+\end{figure}
+
+一般に, 高位合成は C 言語や C 言語をベースに開発された言語を利用することが多いが, 並列度が低く, 回路設計との相性が良くないという課題がある \cite{morioka}. 近年, 組込みシステムの複雑化が進んでおり, 複雑な制御を効率的に実装するために並行プロセスや割り込み処理の記述が必要になってきている. そこで, C 言語など手続き型のプログラミング言語で動作を記述する代わりに, 関数型言語を用いて動作を記述することにより, より並列度が高い動作記述が可能となる. 関数型言語による動作記述をハードウェアとして実装できれば, 並列実行が可能な回路を生成することができる. \par
+
+\subsection{Erlang からの高位合成の流れ}
+文献\cite{sasimi}, \cite{erlang_workshop}ではErlangからの高位合成手法を提案している. この手法では, Erlang プログラム全体を高位合成しハードウェア記述を得る. この時, Erlangの1つのプロセスを1つのハードウェアモジュールに合成する. プロセスはメッセージ通信を除いて他のプロセスの実行の影響を受けずに実行できる. また, スケジューラやプロセスの管理等の実行時環境のオーバーヘッドもなくなる. \par
+% Erlangのプロセスは1つ以上の関数を実行する. 本論文では, 各プロセスに対し, そのプロセスが実行する可能性のあるすべての関数 (静的解析により決定する) を1つのハードウェアモジュールに合成する. ある関数が複数のプロセスにより実行される可能性がある場合は, その関数を複製する. 例えば, 図\ref{erl2hw}では, 起動時に2つのプロセスproc0, proc1が生成され, それぞれ関数f0, f1を呼び出している. f0からはf2が, f1からはf2, f3, f4が呼び出されている. この場合, proc0に対するハードウェアモジュールHW0はf0とf2を, proc1に対するハードウェアモジュールHW1はf1, f2, f3, f4を実行できるようにする. すなわち, 関数f2は両方のハードウェアで実行できるようにする. \par
+% \begin{figure}[htbp]
+%   \center
+%   \includegraphics[scale = 0.70]{images/erl2hw.eps}
+%   \caption{Erlangプロセスのハードウェア化\cite{sasimi}}
+%   \label{erl2hw}
+% \end{figure}
+
+文献\cite{sasimi}, \cite{erlang_workshop}の合成手法の流れを図\ref{erl_hls}に示す. ErlangコンパイラerlcでErlangのプログラムから, Erlangの仮想マシンであるBEAMのアセンブリコードを生成し, ここからCDFG を生成する. これを本研究室で開発した高位合成系ACAP\cite{ACAP}のバックエンドに入力してVerilog HDLを得る. ただし, BEAMの命令の中には, メッセージの送受信, ガベージコレクション等, データフローグラフが大規模になるものが存在する. 文献\cite{sasimi}, \cite{erlang_workshop}では, これらの処理は, 別途独立したハードウェア (ライブラリモジュール) として実装し, プロセスを実行するハードウェアからサブルーチンのように呼び出せるようにしている. ライブラリモジュールは, C言語で実装されたBEAMのインタプリタを縮約したものからACAPで合成している. また文献\cite{erlang_workshop}では回路規模削減を図るためガベージコレクションの機能をライブラリモジュールから独立させている.\par
+
+\begin{figure}[htbp]
+  \center
+  \includegraphics[scale = 0.9]{images/erl_hls_flow.eps}
+  \caption{合成処理の流れ\cite{sasimi}}
+  \label{erl_hls}
+\end{figure}
+
+\section{課題}
+文献\cite{sasimi}, \cite{erlang_workshop} の手法ではErlangからの高位合成手法を提案しているが, その中で以下の3つの課題がある.\par
+1つ目の課題は, 利用できるErlang プロセス数に制限があることである. 現在, 合成できるErlangのプロセス数は10程度となっており, 数十万のプロセスを生成することができることを考えると非常に少ない数のプロセスしか利用できない. それ以上のプロセスを合成しようとする場合, 予期せぬ動作をする可能性がある他, 回路規模や回路遅延がプロセス数に比例して増大してしまう. \par
+2つ目の課題として, 回路規模が非常に膨大となってしまうことがあげられる. 文献 \cite{erlang_workshop} では1プロセスを1ハードウェアモジュールに合成するが, 生成されるハードウェアモジュールが非常に大きくなってしまっている. 文献\cite{erlang_workshop} 内で行っている実験によると, 合成するErlangプロセス数が2の場合でも回路規模が非常に大きくなってしまうため, 実機に実装することが出来ない.  \par 
+3つ目の課題としては, Erlang プログラムの全てを高位合成することがあげられる. Erlang から高位合成することによって並行動作を容易に記述できるが, プログラム全体を高位合成することによって, Erlang の長所である軽量かつ大量のメッセージ通信を行うことが出来ない. より並行動作が容易に記述できる言語がある場合, Erlang を利用するメリットが少なくなってしまう.\par 
+
+% 文献\cite{sasimi}, \cite{erlang_workshop} の手法では, Erlang プログラムの全てを合成する. したがって, Erlang の長所である軽量かつ大量のメッセージ通信を行うことが出来なくなってしまう. また, 使用できるプロセス数に制限があるといった制約があり, Erlang の機能を十分に活かすことが出来ていない.
+% \section{プログラマブルSoC}
+% プログラマブル SoC (Sytem on a Chip) は, プロセッサと書き換え可能な集積回路である FPGA が1枚のチップに集積されたものである. 1枚のチップに集積することで, 1つの機能を実装したチップを複数使って構成する場合と比べ, サイズを小さくすることができる. そのため, スマートフォンのような小さな端末に多く利用されている. また, 機能を1枚のチップに集約しているため, 製造コストの削減も期待できる. 代表的な プログラマブルSoC として, Xilinx社が提供している Zynq \cite{zynq} や, Intel 社が提供している SoC FPGA が挙げられる. 本論文では開発環境が整っているためZynqを利用する.
+
+
+
+
+%プログラマブル SoC は, プロセッサと書き換え可能な集積回路である FPGA が1枚のチップに集積されたものである. 1枚のチップに集積しているため, プロセッサと FPGA 間のやり取りを容易に行うことが可能である. 代表的なプログラマブル SoC として, Xilinx 社が提供している Zynq \cite{zynq} や, Intel 社が提供している SoC FPGA が挙げられる. 特に Zynq では, プロセッサとFPGA間のやり取りに AXI (Advanced eXtensible Interface) を採用している. AXIは様々な機能の仲介を行う役割を担っており, これによりプロセッサとFPGA間のやり取りを円滑に行うことが出来る. また, ハードウェアの特定の機能を集約したものである IP (Intellectual Property) を, FPGA上の様々な機能に接続することを容易にする機能もある.\par
+
+
+\chapter{Erlang からのハードウェア制御}
+
+\begin{figure}[htbp]
+  \center
+  \includegraphics[scale = 0.5]{./images/system.png}
+  \caption{システム概要図}
+  \label{erlang_fpga2}
+\end{figure}
+
+\section{システム概要}
+% システムの概要図を図\ref{erlang_fpga2}に示す. Zynq の ARMプロセッサ上では Erlang とプロトコル変換部が動作する. Erlang はノードと通信を行うプロセスと, ノード間の通信を管理するプロセスと, ポートとのやり取りを管理するプロセスから成る. ポートは Erlang とプロトコル変換部の情報のやり取りを行うために利用する. FPGA には Vivado HLS で生成したハードウェアを搭載する. プロセッサから送信された情報をハードウェアに入力し, 計算結果を返す.
+システムの概要図を図\ref{erlang_fpga2}に示す. 本研究のシステムは, 大きく分けてソフトウェアとハードウェアの部分から構成される. \par
+ソフトウェアの部分は, 外部ノードと通信を行うErlang プログラムと, ノードから受け取った情報をハードウェアが認識できるようにするプロトコル変換部から成る. Erlang VM 上では複数のプロセスが動作し, Port を介してプロトコル変換部と通信を行う. プロトコル変換部ではErlangから受け取った情報を MMIO (Memory Mapped Input/Output)でハードウェアに入力し, ハードウェアで計算が完了したらMMIOで値を読み取りErlang へ返す.\par 
+ハードウェア上では任意の機能が動作する. この時, ソフトウェアから MMIO でアクセスできるように, 入出力用のレジスタをメモリ空間にマッピングする. \par
+
+\section{ノードとの通信方法}
+各ノードとの通信には Erlang でソケットを利用して行う. 通信方式としては UDP (User Datagram Protocol) を利用し, サーバ・クライアント構造を使用する. 各ノードをクライアントとし, 本システムにサーバを建てて実現する. \par
+クライアントのソースコードを図\ref{client}に示す. cliant\_make\_ref 関数を呼び出すことでサーバにメッセージを送信する. 2行目でUDPソケットをオープンする. 4行目で make\_ref() を呼び出しているが, これは通信方式として UDP を採用しているため, UDP パケットが重複して配送されることがある. そこで一意なリファレンスを要求に含め, サーバがそのリファレンスを返してきたかをチェックすることで, UDP パケットが重複して配送されることを防ぐ. 5, 6, 7行目でメッセージをバイナリに変換してサーバにメッセージを送信し, 待機状態にはいる. wait\_for\_ref 関数では, サーバからの返答を待つ. 11 行目でメッセージを受信した後, 受信したメッセージをバイナリから変換し結果を表示する. 15--17行目では想定と異なるものを受信したという旨を表示し, 再度待機状態にはいる. 19, 20 行目でタイムアウトを設定する. これは UDP では信頼性が保証されていないため, 応答を本当に受け取れるか定かではないからである.\par 
+サーバのソースコードを図\ref{server}に示す. start\_server関数を実行することで, 4000番ポートを開いて, サーバを起動する. server 関数を呼び出すことで, サーバのソケットをオープンし待機状態に入る. loop1 関数はサーバの待機状態となっている. 8--11 行目で受け取ったメッセージから必要な情報を取り出し, 実行したい関数に値を入力する. 12行目で計算結果と識別子を付与し送信元に返信し, 13行目で待機状態に入る.
+
+\begin{figure}[htbp]
+  \begin{lstlisting}
+client_make_ref(X,Y) ->
+  {ok, Socket} = gen_udp:open(0, [binary]),
+  io:format("client opened socket: ~p~n", [Socket]),
+  Ref = make_ref(),
+  B1 = term_to_binary({Ref, X, Y}),
+  ok = gen_udp:send(Socket, "localhost", 4000, B1),
+  wait_for_ref(Socket, Ref).
+
+wait_for_ref(Socket, Ref) ->
+  receive
+    {udp, Socket, _, _, Bin}  ->
+      case binary_to_term(Bin) of
+        {Ref, Val} ->
+          io:format("client recieved: ~p~n", [Val]);
+        {_SomeOtehrRef, _} ->
+          io:format("received other one~n"),
+          wait_for_ref(Socket, Ref)
+      end
+  after 1000 ->
+    io:format("Timeout~n")
+  end,
+  gen_udp:close(Socket).
+  \end{lstlisting}
+  \caption{クライアント}
+  \label{client}
+\end{figure}
+
+\begin{figure}[htbp]
+  \begin{lstlisting}
+start_server() ->
+  spawn(fun() -> server(4000) end).
+  
+server(Port) ->
+  {ok, Socket} = gen_udp:open(Port, [binary]),
+  io:format("server opened socket: ~p~n",[Socket]),
+  loop1(Socket).
+
+loop1(Socket) ->
+  receive
+    {udp, Socket, Host, Port, Bin} = Msg ->
+      io:format("server received: ~p~n", [Msg]),
+      {Ref,X,Y} = binary_to_term(Bin),
+      Fac = sum(X,Y),
+      gen_udp:send(Socket, Host, Port, term_to_binary({Ref, Fac})),
+      loop1(Socket)
+  end.
+  \end{lstlisting}
+  \caption{サーバ}
+  \label{server}
+\end{figure}
+
+クライアントの実行コマンドを図\ref{client_command}に示す. なお今回の例ではサーバで加算を行うものとする. 図 \ref{client_command} では, 1番目のコマンドでクライアントのソースコードをコンパイルし, 2番目のコマンドでクライアント側のソケットをオープンしサーバ側に値を送信する. そして, サーバからの返信結果を表示し, ok と表示して終了する. また, 3番目のコマンドのように, 想定されていなものを送信した場合は Timeout と表示され終了する. 最後に4番目のコマンドでプログラムを終了する.\par
+サーバの実行コマンドを図 \ref{server_command}に示す.1番目のコマンドでサーバのソースコードをコンパイルし, 2番目のコマンドでサーバ側のソケットをオープンしリクエストを受信できる状態に入る. server received: 以下がサーバが受信したリクエスト, server (unpack): がリクエストを復号したもの, server replying: が返信するものとなる. 1つ目のserver received: が図\ref{client_command}の3番目のコマンドで送ったリクエストの受信結果で, 2つ目のserver received: が4番目のコマンドで送ったリクエストの受信結果となる. 1つ目のリクエストでは正常に加算を行うことができるためserver replying: までが表示されている.しかし, 2つ目のリクエストでは a と b は加算を行うことが出来ないため返信をすることが出来ず, server replying: が表示されていないことが分かる.
+
+\begin{figure}[htbp]
+  \center
+  \includegraphics[scale = 1.0]{./images/command_client.eps}
+  \caption{クライアントの実行コマンド}
+  \label{client_command}
+\end{figure}
+
+\begin{figure}[htbp]
+  \center
+  \includegraphics[scale = 1.0]{./images/command_server.eps}
+  \caption{サーバの実行コマンド}
+  \label{server_command}
+\end{figure}
+
+% \begin{itemize}
+%   \item ノードとの通信方法について (UDP, クライアント・サーバ構造)
+%   \item クライアントのソースコード (飛行機本参照)
+%   \item サーバのソースコード (飛行機本参照)
+% \end{itemize}
+
+\section{外部プログラムとの通信方法}
+外部プログラムとの通信の概要を図\ref{out_pic}にしめす. Erlang とプロトコル変換部との通信には, Erlang ランタイムシステムの外部の別のオペレーティングシステムプロセスで外部プログラムを実行して, バイト型通信チャネルを通じてそのプロセスと通信する. 通信チャネルの Erlang 側は Erlang ポートで制御する. ポートを作るプロセスはそのポートの接続プロセスと呼ばれ, 外部プログラムに送られるメッセージには必ず接続プロセスのプロセス ID を付与し, 外部プログラムからのメッセージは全て接続プロセスに送られる.\par 
+
+
+\begin{figure}[htbp]
+  \center
+  \includegraphics[scale = 0.25]{./images/out_prog.png}
+  \caption{ポート接続 \cite{erlang}}
+  \label{out_pic}
+\end{figure}
+
+外部プログラムと通信を行う Erlang プログラムを図 \ref{out_prog}に示す. start 関数を呼び出すことで, 接続プロセスを生成する.  2-7行目までがプロセス生成を行うプログラムとなっている. 3行目の register で接続プロセスに porttest という名前をつけ, 他の関数から呼び出しやすくする. 4行目の process\_flag を呼び出すことで, 接続プロセスを狩猟の補足が可能なシステムプロセスに変更する. 5行目の open\_port でポートを開く. この例の場合では, my\_protocol.py と接続するポートを開く.  その後の引数はオプションとなっており, {packet, 2} を付与することで, 外部プログラムに送信される全てのパケットに2バイトのパケット長ヘッダが付与され, binary を付与することで, ポートからの全ての入出力がbinaryになる. 6行目で loop 関数を呼び出し, メッセージ待ち状態に移行する. stop 関数は接続プロセスに終了を伝える関数となっている. loop 関数は接続プロセスの待機状態となっている. 14 行目で メッセージを受信すると, メッセージから必要要素を取り出し, 15行目で binary に encode して Port に送信する. 16, 17 行目で Port から返ってきたメッセージを受信し, 18行目でメッセージを decode して結果を送信元に送信する. 19 -- 22行目は例外処理となっており, 想定とは異なるメッセージが送られてきた時, エラーメッセージの内容を表示する. メッセージの送受信が完了すると23行目で再度待機状態に入る. call\_port 関数はポートを呼び出し結果を表示する関数となっている. 27行目で接続プロセスに, 外部プログラムに値を入力する旨のメッセージを送信する. 28, 29行目でメッセージを受信し, 30 行目で外部プログラムでの計算結果をを表示する. 33, 34行目は外部プログラムでそれぞれ値を2倍, 加算を行う命令を送信する関数となっている. この命令の数だけ36,37行目のように encode のパターンを用意する必要がある. 36, 37, 39 行目は encode, decode 関数なっており, Erlang の BIF である term\_to\_binary と binary\_to\_term を呼び出す関数となっている. これらの関数はそれぞれ値をバイナリに変換する関数と, バイナリを値に変換する関数となっている.\par
+外部プログラムとしては, メイン処理の他にErlang プログラムから送られてきたデータをデコードするプログラムが必要となる. これが図\ref{erlang_fpga2} でのプロトコル変換部となる. このプロトコル変換部では, Erlang プログラムとどのようにして通信を行うかを定義している. 例えば図\ref{out_prog} の例ではどのパケットも2バイトの長さコード (Len) で始まり, その後に Len バイトのデータが続くようあらかじめ定義しており, それに沿って外部プログラムを実装する.\par
+外部プログラムとの通信コマンドを図\ref{command_out} に示す. 1番目のコマンドで外部プログラムと通信を行うErlangプログラムをコンパイルし, 2番目のコマンドで外部プログラムとの通信を始めるためポートを開く. 3番目のコマンドで外部プログラムで行いたい動作をするための関数を実行し, 計算結果が受信するまで待機する. 計算結果を受信すると結果を表示する. 4番目のコマンドでポートを閉じ, 5番目のコマンドでプログラムを終了する. 
+
+\begin{figure}[htbp]
+  \begin{lstlisting}
+start() ->
+    spawn(fun() ->
+		  register(porttest, self()),
+		  process_flag(trap_exit, true),
+		  Port = open_port({spawn, "./erlang_port/my_protocol.py"}, [{packet, 2}, binary]),
+		  loop(Port)
+	  end).
+
+stop() ->
+    porttest ! stop.
+
+loop(Port) ->
+    receive
+    {call, Caller, Msg} ->
+        Port ! {self(), {command, encode(Msg)}}, 
+        receive
+          {Port, {data, Data}} ->
+              Caller ! {porttest, decode(Data)};
+        X ->
+          io:format("unknown message: [~w]~n", [X]),
+          throw('Unknown message received.')
+        end,
+    loop(Port)
+    end.
+
+call_port(Msg) ->
+    porttest ! {call, self(), Msg},
+    receive
+      {porttest, Result} ->
+      io:format("received: '~p' ~p ~n", [Result, self()])
+    end.
+
+twice(X) -> call_port({twice, X}).
+sum(X, Y) -> call_port({sum, X, Y}).
+
+encode({twice, X}) -> term_to_binary({twice, X});
+encode({sum, X, Y}) -> term_to_binary({sum, X, Y});
+
+decode(Data) -> binary_to_term(Data). 
+  \end{lstlisting}
+  \caption{外部プログラムとの通信}
+  \label{out_prog}
+\end{figure}
+
+\begin{figure}[htbp]
+  \center
+  \includegraphics[scale = 1.0]{./images/command_out.eps}
+  \caption{外部プログラムと通信を行うコマンド}
+  \label{command_out}
+\end{figure}
+
+% \begin{itemize}
+%   \item 通信方法について(プロセスとポート接続, メッセージ通信, バイトストリーム)
+%   \item 外部プログラムと通信してる図 (飛行機本参照)
+% \end{itemize}
+
+\section{ハードウェアの制御方法}
+% ハードウェアの制御はプロトコル変換部によって行う. プロトコル変換部では Erlang プログラムとの通信と, ハードウェアの制御を行う. 制御の方式としては MMIO (Memory Mapped Input/Output) を用いる. MMIO とは入出力方式の一つで, CPU が入出力デバイスへアクセスするための命令を, メインメモリへアクセスするための命令と同じアドレス空間で扱う方式である. これによって, 入出力デバイスとメインメモリを同じ命令で扱うことができる. 本論文でのシステムでは, 入出力用のレジスタをアドレス空間にマッピングし, プロトコル変換部でマッピングしたアドレスへの読み書きを行う. これにより, CPU 側からはアドレスへの書き込みを行うだけでハードウェアの制御ができるようにする. レジスタをアドレス空間のどの位置にマッピングするかはあらかじめ設定する. \par
+ハードウェアの制御はプロトコル変換部によって行う. プロトコル変換部では, 前節で述べたErlangから送られてきたメッセージを元にハードウェアの制御を行う. ハードウェアの制御方式としては MMIO (Memory Mapped Input/Output) を用いる. MMIO の概要図を図\ref{mmio} に示す. CPU が I/O System へのアクセスするための命令を, メインメモリへアクセするための命令と同じアドレス空間で扱う. 同じアドレス空間に配置した様子を図\ref{mmio_address} に示す. 図\ref{mmio_address}にあるとおり, アドレス空間をメモリ空間とI/O機器のレジスタに割り当てている. これによって, 入出力デバイスとメインメモリを同じ命令で扱うことができる. 本論文でのシステムでも図\ref{mmio_address}と同様に, ハードウェアの入出力用のレジスタをアドレス空間にマッピングし, プロトコル変換部でマッピングしたアドレスへの読み書きを行う. これにより, CPU 側からはアドレスへの書き込みを行うだけでハードウェアの制御ができるようにする. なお, レジスタをアドレス空間のどの位置にマッピングするかはあらかじめ設定する. \par
+
+\begin{figure}[htbp]
+  \center
+  \includegraphics[scale = 0.5]{./images/mmio1.png}
+  \caption{Memory-mapped I/O \cite{mmio}}
+  \label{mmio}
+\end{figure}
+\begin{figure}[htbp]
+  \center
+  \includegraphics[scale = 0.5]{./images/mmio2.png}
+  \caption{Memory-mapped\cite{mmio}}
+  \label{mmio_address}
+\end{figure}
+% (図を中心に説明したいけど, いい図が思いつかない.)
+
+% \begin{itemize}
+%   \item ハードウェアの制御方法について (HW制御全体の流れ, 機能の概要)
+%   \item プロトコル部の機能について
+%   \item HW への入出力方法 (MMIO)
+%   \item HW 側での設定 (特定のレジスタをアドレスに割当)
+%   \item 図 (MMIO っぽい図?)
+% \end{itemize}
+
+\chapter{実装と実験結果}
+\section{プログラマブルSoCによる実装}
+
+\begin{figure}[htbp]
+  \center
+  \includegraphics[scale = 0.5]{./images/system_soc.png}
+  \caption{プログラマブルSoCにおける実装図}
+  \label{erlang_fpga}
+\end{figure}
+
+\subsection{プログラマブル SoC}
+プログラマブル SoC (Sytem on a Chip) は, プロセッサと書き換え可能な集積回路である FPGA が1枚のチップに集積されたものである. 1枚のチップに集積することで, 1つの機能を実装したチップを複数使って構成する場合と比べ, サイズを小さくすることができる. そのため, スマートフォンのような小さな端末に多く利用されている. また, 機能を1枚のチップに集約しているため, 製造コストの削減も期待できる. 代表的な プログラマブルSoC として, Xilinx社が提供している Zynq \cite{zynq} や, Intel 社が提供している SoC FPGA \cite{intel} が挙げられる. 特にZynqではプログラマブルSoCのプロセッサ部を PS (Processing System), FPGA 部 PL (Programable Logic) と呼び, PS部とPL部のやり取りに AXI (Advanced eXtensible Interface) を採用している. また, ハードウェアの特定機能を集約したものを IP (Intellectual Property) と呼び, Xilinx社が提供している合成系である Vivado HLS を利用して作成することができる.\par
+実装には PYNQ-Z1 を用いる. PYNQ-Z1 は Zynq を搭載した評価ボードであり, Python を利用した制御や Jupyter Notebook を利用した開発が可能となっている. PYNQ では FPGA の設定ファイルである Bitstream を Overlay と呼んでおり, 複数の Overlay を用意しておくことで動的に FPGA を再構成することも可能である. \par
+
+
+\subsection{実装}
+本論文のシステムをPYNQ-Z1に実装した. システム概要図を図\ref{erlang_fpga} に示す. PS 部には前章で述べた Erlang プログラムとプロトコル変換部を搭載している. Erlang プログラムはセンサなどの外部ノードとの通信を行い, メッセージのやり取りを行う. Erlang と FPGA との情報のやり取りを行うプロトコル変換部は, Pyhton と Erlang 通信を行うPythonプログラムである, erlang-port-with-python \cite{erlang-python} を参考に実装した. プロトコル部からハードウェアへのアクセスはPYNQ Project で提供されているのMMIOクラスを利用する. PS 部と PL 部のやり取りには AXI を利用し, AXI に Vivado HLS で高位合成した IP を接続し PS部からとのやり取りを容易にしている. PL部で計算された結果はAXIを通じてPS部のプロトコル部へと送信され, 計算結果をErlang部に送り各ノードに返信する. \par 
+ハードウェアの制御を行う Python プログラムを図 \ref{my_protocol} に示す. 12 行目の MyProtocol クラス内に関数を handler\_ というヘッダをつけて実装する. 13行目のhandler\_write\_hw(self, x) 関数は FPGA をコンフィグレーションする関数となっている. この関数が呼び出されると Overlay 以下に記述された bitstream などの情報をもとに FPGA をコンフィグレーションする. 成功した場合は引数をそのまま返し, 失敗した場合はエラーを出力し停止する. 17行目の handler\_neural\_hw はハードウェアに値を入力し, 計算結果を読み込む関数となっている. 18 行目で IP 内の prop\_cycle\_0 にアクセスするためのドライバが作成され, mat\_ip を通じてアクセスできるようにする.  19--21行目の変数はオフセットとなっており, 入力と出力用のレジスタが基準から何番目にあるかを示している. これらの値は高位合成をした際にドライバのヘッダのソースを読むことで特定できる. 22, 23 行目でレジスタに書き込みを行う. 23行目でpack 関数を利用しているのは入力値が小数の場合にも対応できるようにするためである. 24 行目で 0番目のレジスタに1を書き込むことでFPGAが動作する. 25-27行目で計算結果を読み取り, 26, 27 行目でunpackを利用することで, 計算結果が小数の場合でも正しく値を読み取ることができる. 28 行目で計算結果をErlang に送信する. 30, 31行目でErlangとのやり取りを行うプログラムを実行しているが, プログラムが非常に大きいため付録にて掲載する.\par
+本手法で制御できることを確認するため, 前章のシステムを FPGA に実装した. 実行するコマンドを図\ref{command}に示す. 1番目のコマンドで Erlang プログラムをコンパイルし, 2番目, 5番目のコマンドでプロセスの生成, 終了をそれぞれ行う. 3番目のコマンドでハードウェアに bitstream の書き込みを行い, 4番目のコマンドでハードウェアに引数を送信する. 4番目のコマンドを実行した結果, 引数である10と5を加算した15が受信できているのが確認できた. \par 
+
+
+\begin{figure}[htbp]
+  \begin{lstlisting}
+#! /usr/bin/env python3
+# -*- coding:utf-8 -*-
+
+from protocol import Protocol
+from pynq import Overlay
+from pynq import DefaultIP
+import bnn
+from PIL import Image
+import numpy as np
+import struct
+
+class MyProtocol(Protocol):
+    def handler_write_hw(self, x):
+        self.overlay = Overlay('/home/xilinx/jupyter_notebooks/bitstreams/neural_hw/design_neural_hw_wrapper.bit')
+        return x
+
+    def handler_neural_hw(self, x, y):
+        mat_ip = self.overlay.prop_cycle_0
+        in1 = 0x10
+        in2 = 0x18
+        out1 = 0x20
+        mat_ip.write(in1, x)
+        mat_ip.write(in2, struct.pack("<f", y))
+        mat_ip.write(0x00, 1)
+        a = mat_ip.read(out1)
+        b = struct.pack(">i", a)
+        res1 = struct.unpack(">f", b)[0]
+        return res1
+
+if __name__ == '__main__':
+    MyProtocol().run()
+  \end{lstlisting}
+  \caption{ハードウェアの制御を行うPythonプログラム}
+  \label{my_protocol}
+\end{figure}
+
+\begin{figure}[htbp]
+  \center
+  \includegraphics[scale = 1.0]{./images/command.eps}
+  \caption{実行コマンド}
+  \label{command}
+\end{figure}
+
+% \begin{itemize}
+%   \item PYNQ-Z1 における実装
+%   \item プロトコル部はPython
+%   \item HW の入出力はPYNQのOverlayクラスを使用
+%   \item HW の部分(例題)は VivadoHLSを使用して作成
+%   \item 例題について (多層パーセプトロンみたいなもの)
+%   \item 図: 例題の概要, (プロトコル部のソース?)
+% \end{itemize}
+
+\section{評価実験}
+本手法での性能を評価するためにソフトウェアとハードウェアで同じ処理を行う例題を作成し, それぞれErlangから呼び出して計算結果が蹴ってくるまでの時間を計測した.  例題として, 2つの引数の加算をソフトウェア, ハードウェアそれぞれで行うものと, 図 \ref{neural_example} のような n 入力1出力で10層の完全結合層からなるニューラルネットワークを用意し, n の大きさを変更し実行時間の計測を行った. 今回の実験ではソフトウェアとハードウェアの計算処理速度に焦点を当てるため, Erlang でのサーバ・クライアント間の通信は行っていない. \par
+加算を実行した場合の結果を表\ref{table0} に示す. 実行方式は, Erlang からソフトウェアで加算を実行したものと, ハードウェアで加算を実行したものとなっている. 実行時間を比較すると, ソフトウェアで実行した場合のほうが, ハードウェアで実行したものと比較して格段に早いことが確認できた. このことから加算程度の計算量ではハードウェアを制御するときのオーバーヘッドにより遅くなってしまうことが確認できる. \par
+ニューラルネットワークを実行した場合の結果を表 \ref{table1} に示す. 実行方式はそれぞれErlang からソフトウェアで実装したニューラルネットワークを呼び出し結果を表示するまでと, Erlang からハードウェアで実装したニューラルネットワークを呼び出して結果を表示するまでとなっている. 括弧の中の数字は完全結合層の大きさとなっている. それぞれの方式で1000回実行し実行時間の比較を行った. Eralng + SW の方式では, 完全結合層の大きさが増加するのに応じて実行時間も増加しているが, Erlang + HW の方式では実行時間は, 完全結合層の大きさが32$\times$32の場合と255$\times$255の場合を比較しても0.1秒程度しか増加していないのが分かる. これは本手法を用いた場合でも, ハードウェアの性能を発揮できることを示している.
+
+
+\begin{figure}[htbp]
+  \center
+  \includegraphics[scale = 0.7]{./images/neural_example.png}
+  \caption{例題で使用するニューラルネットワーク}
+  \label{neural_example}
+\end{figure}
+
+% \begin{itemize}
+%   \item 実験内容(計測区間, 完全結合層の大きさ)
+%   \item 実験結果
+% \end{itemize}
+
+% \begin{table}[htbp]
+% \begin{footnotesize}
+%     \begin{center}
+%       \caption{実行時間の比較}
+%       \label{table}
+%       \vspace{1pt}
+%       \begin{tabular}{|l|r|r|}
+%         \hline
+%         \multicolumn{1}{|c|}{実行方式} & 実行回数 & 実行時間 [s] \\ \hline
+%         \multirow{2}{*}{Erlang} 
+%         & 1 & 3.05e-4 \\
+%         & 10000 & 9.98e-4 \\ \hline
+%         \multirow{2}{*}{Erlang + HW} 
+%         & 1 & 0.01 \\
+%         & 10000& 37.78 \\\hline
+%       \end{tabular}
+%     \end{center}
+%   \end{footnotesize}
+%   \begin{center}
+%     \footnotesize(CPU: 650MHz dual-core Cortex-A9 \\ FPGA: Artix-7)
+%   \end{center}
+% \end{table}
+
+\begin{table}[htbp]
+  \begin{center}
+    \caption{実行時間の比較  (加算)}
+    \label{table0}
+    \vspace{1pt}
+    \begin{tabular}{|c|c|r|}
+      \hline
+      実行方式 & 実行回数 & {実行時間 [s]} \\ \hline
+      \multicolumn{1}{|c|}{Erlang + SW} & \multicolumn{1}{r|}{10000} & 9.98e-4 \\ \hline
+      \multicolumn{1}{|c|}{Erlang + HW} & \multicolumn{1}{r|}{10000} & 37.78 \\\hline
+    \end{tabular}
+  \end{center}
+  \begin{center}
+    \footnotesize(CPU: 650MHz dual-core Cortex-A9 FPGA: Artix-7)
+  \end{center}
+\end{table}
+
+\begin{table}[htbp]
+  \begin{center}
+    \caption{実行時間の比較 (ニューラルネットワーク)}
+    \label{table1}
+    \vspace{1pt}
+    \begin{tabular}{|c|c|rrrr|}
+      \hline
+      \multirow{2}{*}{実行方式} & \multirow{2}{*}{実行回数} & \multicolumn{4}{c|}{実行時間 [s]} \\ \cline{3-6}
+        &  & \multicolumn{1}{c}{(32$\times$32)} & \multicolumn{1}{c}{(64$\times$64)} & \multicolumn{1}{c}{(128$\times$128)} & \multicolumn{1}{c|}{(255$\times$255)} \\ \hline
+      %\multirow{2}{*}{} & aaa & bbb & ccc & ddd & eee \\ \hline
+      %& a1 & a2 & a3 & a4 & a5 \\ \hline
+      %\multicolumn{1}{|c|}{実行方式} & 実行回数 & 実行時間 [s] \\ \hline
+      \multicolumn{1}{|c|}{Erlang + SW} & \multicolumn{1}{r|}{1000} & 5.0071 & 6.8313 & 12.3943 & 35.3820\\ \hline
+      \multicolumn{1}{|c|}{Erlang + HW} & \multicolumn{1}{r|}{1000} & 4.1417 & 4.1314 & 4.2414 & 4.2762\\\hline
+    \end{tabular}
+  \end{center}
+  \begin{center}
+    \footnotesize(CPU: 650MHz dual-core Cortex-A9 FPGA: Artix-7)
+  \end{center}
+\end{table}
+
+\section{考察}
+前節の実験を通して, 本手法を用いることによりハードウェアの性能を発揮することができることを示した. 表\ref{table0} から分かるとおり, 加算のようなErlang でハードウェアを制御するよりも短い時間で計算が完了するようなものを実装した場合, ソフトウェアの方が速く計算が完了する. そのため, ハードウェアの制御にかかる時間よりも計算量の大きい問題を実装することで, 本手法の効果を十分に発揮できると考えられる. \par 
+また, プロトコル変換部をどのプログラミング言語で実装するかも考える必要がある. 表\ref{table1} のErlang + HW の欄を見て分かるとおり, n の大きさが増加しても, ハードウェアの実行時間は 0.1 秒程度しか増加していない. このことから, 本手法における実行時間の大半はErlang とプロトコル変換部との通信時間と, プロトコル変換部とハードウェアの通信時間が占めていることが考えられる. 今回は評価ボードを有効に活用するために Python を使ってプロトコル変換部を実装したが, C 言語などのコンパイルが必要な言語を用いることで本手法を更に高速化することが可能であると考えられる. \par 
+本手法で多数のノードと通信を行う場合には Erlang 部も改良する必要があると考える. 図 \ref{erlang_fpga} より, 多数のノードと同時通信を行うことが出来たとしても, Port と通信を行うプロセスが一つしかないためこの部分がボトルネックになってしまう可能性がある. 複数のプロセスを外部プログラムに接続することでこの問題は解消できるが, 外部プログラムで排他制御を実装する必要が出てくるため実装コストが膨大となる. \par
+
+
+\chapter{結論}
+本論文では, プログラマブルSoCにおけるErlang からのハードウェア制御方法を提案した.
+Erlang プログラムから外部プログラムを通してハードウェアを制御することで, Erlang 側からはハードウェアを意識することなく制御することを可能にした.\par
+本手法の有効性を検証する評価実験を行ったところ, ソフトウェアで同様の動作を行うよりも実行時間を短縮することが出来, ハードウェアの性能を発揮できることが確認できた.\par
+これにより, 実際に実機に搭載し十分な性能を発揮することができると期待できる.\par
+実験結果より, 計算量の大きい処理をハードウェアに実装することでより効果が高まると考えられる.\par
+Erlang プログラムから呼び出すを外部プログラムをC言語などで実装することでハードウェアとの通信のオーバーヘッドをより小さくしていくことが今後の課題である.\par
+
+
+% まず「本論文では〜ついて述べた/提案した」と総括する.
+% どういう特長があったか, 何がキーアイデアだったか簡単に総括する.
+
+% どのような結果が得られたか簡単に総括する.\par
+% その結果にどんな意義があるか (背景で述べた問題がどう解決されるか) 述べる.\par 
+
+% 研究全体を振り返っての考察や議論を書く.
+% \begin{itemize}
+%  \item 今回とったアプローチは (一段下がった立場から) どう評価できるか. 
+%   本質的にかなり良いか, ある場合に素晴らしく良いか, 特殊な場合に限られ
+%   るが意義があるか, 今後重要になってくるか, 等. 
+%   \item この研究を通じて得た知見 (見えて来たこと): 例えば, 
+%   本質的な点はやはり/実はここにある,  意外な盲点があった, 
+%   これまでの問題はこのようにも見ることができる,  このような研究と関連するといえる, 等. 
+% \end{itemize}
+% 
+% 展望や課題
+% \begin{itemize}
+%  \item 今後, このような方向に動くと考えられるので〜が重要になる, 
+%   今後益々〜が重要になると考えられる, 〜の解決は非常に重要である, 等.
+%   \item (それを踏まえた上で) 〜が重要な課題になる,  
+%   今回は簡単のため〜したが〜に拡張することが実用上意義があると考えられる, 
+%   今後の研究の方向としては〜が考えられる, 等. 
+% \end{itemize}
+
+
+\acknowledgement
+
+(田村真平氏の修論の例)
+
+本研究に際し, 多くの方々から御指導, 御支援を賜りました. ここに感謝の意を表します. 
+
+高位合成の研究に携わる機会を与えていただき, 
+研究に関する多くの御指導, 御支援を賜りました石浦菜岐佐教授に心より感謝いたします. 
+
+本研究に関する有益な議論の場を提供して頂き, 
+様々な視点から御指導いただきました京都高度技術研究所の神原弘之氏に感謝いたします. 
+本分野に対する高い見識を持ち, 
+様々な面で御助力いただきました立命館大学の冨山宏之教授に感謝いたします. 
+技術的な面で多くの御助言をいただきました元立命館大学の中谷嵩之氏に感謝いたします. 
+
+本研究で合成するアクセラレータの各種仕様に関する御助言等, 
+本研究に大きく貢献いただきました伊藤直也氏，佐竹俊亮氏に感謝いたします. 
+本研究を進めるにあたり, 高位合成システムの開発等で多くの御支援をいただきました織野真琴氏, 
+山下真司氏に感謝いたします. 
+
+最後に, 研究のみならず生活面においても多くの御支援をいただいた関西学院
+大学理工学部石浦研究室の皆様に深く感謝いたします．
+
+
+\chapter*{関連発表文献}
+
+% (修論のみ)
+
+% 学会で発表した場合は, 修論と直接関係がないものもここに全て書いて下さい
+% (ない場合は, この章ごと削除).
+
+% - 発表日の *新しい順* にして下さい (最近の発表が一番前で, 昔の発表が後ろ)
+% - 論文自体の書式は参考文献と同じ
+
+\begin{enumerate}
+
+%  \item E. Nagai, A. Hashimoto, and N. Ishiura:  
+% ``Reinforcing Random Testing of Arithmetic Optimization of C Compilers
+% by Scaling up Size and Number of Expressions,''
+% {\it IPSJ Trans.\ System LSI Design Methodology}, 
+% vol.~7, pp.~91-100 (Aug.\ 2014). 
+
+%  \item 福本貴之, 石浦菜岐佐: 
+%  ``PerlのためのCUDAバインディングフレームワークPerCUDA,''
+%  電子情報通信学会技術研究報告, VLD2013-132 (Jan. 2014).
+%  \par $\bullet$ 情報処理学会 SLDM 優秀発表学生賞 受賞 (2014年8月28日). 
+%  \par $\bullet$ 情報処理学会 コンピュータサイエンス領域奨励賞 受賞 (2015年7月15日). 
+
+%  \item 竹林陽, 伊藤直也, 田村真平, 神原弘之, 石浦菜岐佐:
+%   ``高位合成系ACAPを用いたモーターの浮動小数点モデルのFPGA上での実行,''
+%   情報処理学会関西支部大会, A-02, (Sept. 2014).
+%   \par $\bullet$ 情報処理学会関西支部 2014年度支部大会 学生奨励賞 (2014年9月17日).
+
+\item 若林秀和, 石浦菜岐佐:
+  ``プログラマブル SoC における Erlang からのハードウェア制御,''
+  電子情報通信学会技術研究報告, VLD2020-75 (Mar.~2020). (予定)
+
+\item 若林秀和, 石浦菜岐佐, 吉田信明, 神原弘之:
+``Erlangからの高位合成のための関数レベル並列化,''
+電子情報通信学会ソサイエティ大会, A-6-3 (Sept.\ 2017).
+
+\end{enumerate}
+
+
+\begin{thebibliography}{99}
+
+% % 英語の論文誌 (Transaction を略して Trans.) の例
+% \bibitem{Orange3} E. Nagai, A. Hashimoto, and N. Ishiura:  
+% ``Reinforcing Random Testing of Arithmetic Optimization of C Compilers
+% by Scaling up Size and Number of Expressions,''
+% {\it IPSJ Trans.\ System LSI Design Methodology}, 
+% vol.~7, pp.~91-100 (Aug.\ 2014). 
+
+% % 日本語の論文誌の例
+% \bibitem{BDDmin} 澤田宏, 石浦菜岐佐, 矢島脩三:
+% ``論理関数を表現する 2 分決定グラフの最小化,''
+% 電子情報通信学会論文誌 D-I, vol.~J76-D-I, no.~2, pp.~63--71 (Feb. 1993).
+
+
+% % 国際会議予稿集 (Proceedings を略して Proc.) の例
+% \bibitem{ACAP} N. Ishiura, H. Kanbara, and H. Tomiyama: 
+% ``ACAP: Binary Synthesizer Based on MIPS Object Codes,'' 
+% in {\it Proc. ITC-CSCC 2014}, pp. 725--728 (July 2014).
+
+% % 研究会の例
+% \bibitem{PerCUDA} 福本貴之, 石浦菜岐佐: 
+% ``PerlのためのCUDAバインディングフレームワークPerCUDA,''
+% 電子情報通信学会技術研究報告, VLD2013-132 (Jan. 2014).
+
+% % 大会の例
+% 藤原大輔, 石浦菜岐佐:
+% ``LLVMバックエンド用テストプログラムのテンプレート記述,''
+% 電子情報通信学会ソサイエティ大会, A-3-16 (Sept. 2014). 
+\bibitem{hls}
+Daniel D.\ Gajski, Nikil D.\ Dutt, Allen C-H Wu, and Steve Y-L Lin: \textit{High-Level Synthesis: Introduction to Chip and System Design,} Kluwer Academic Publishers (1992).
+
+% \bibitem{itou}
+% 伊藤直也, 竹林陽, 神原弘之, 石浦菜岐佐: ``多倍長整数演算ライブラリをリンクしたバイナリコードからのRSA暗号の高位合成,'' 情報処理学会関西支部大会, A-04 (Sept.\ 2015).
+%
+% \bibitem{takebayashi}
+% 竹林陽, 伊藤直也, 田村真平, 神原弘之, 石浦菜岐佐: ``高位合成系ACAPを用いたモーターの浮動小数点モデルのFPGA上での実行,'' 情報処理学会関西支部大会, A-02 (Sept.\ 2014).
+
+\bibitem{system}
+本田晋也, 冨山宏之, 高田広章, ``システムレベル設計環境: SystemBuilder,'' 電子情報通信学会論文誌, vol.\ J88-D-I, no.\ 2, pp.~163--174 (Feb.\ 2005).
+
+\bibitem{cpu}
+田村真平, 石浦菜岐佐, 神原弘之, 冨山宏之: ``CPU密結合型アクセラレータの機械語プログラムからの自動合成,'' 電子情報通信学会技術研究報告, VLD2013-133 (Jan.\ 2014).
+
+\bibitem{erlang}
+Joe Armstrong 著, 榊原一矢訳: プログラミング Erlang,
+オーム社 (2008).
+
+\bibitem{erlang_prog}
+力武健次: ``Erlangで学ぶ並行プログラミング,'' Software Design, 2015年4月号, pp.~124--129 (Apr.\ 2015).
+
+
+\bibitem{sasimi}
+H. Takebayashi, N. Ishiura, K. Azuma, N. Yoshida, and H. Kanbara:
+``High-Level Synthesis of Embedded Systems Controller from Erlang,''
+in \textit{Proc.\ Workshop on Synthesis And System Integration of Mixed Information Technologies},
+pp.~285--290 (Oct.\ 2016).
+
+\bibitem{erlang_workshop}
+K. Azuma, N. Ishiura, N. Yoshida, and H. Kanbara:
+``Distribute Memory Architecture for High-Level Synthesis of Embedded Controllers from Erlang,''
+in \textit{Proc.\ ACM SIGPLAN International Workshop on Erlang 2017},
+pp. ~13--19 (Sept.\ 2017).
+
+\bibitem{ACAP} N. Ishiura, H. Kanbara, and H. Tomiyama:
+``ACAP: Binary Synthesizer Based on MIPS Object Codes,''
+in \textit{Proc.\ International Technical Conference on Circuit/Systems, Computers and Communications}, pp. 725--728 (July 2014).
+
+\bibitem{morioka}
+森岡澄夫:
+``高位合成の必要性と技術的課題, そして今後,''
+FPGA マガジン, no.~10, pp.~4--15 (Aug.~2015).
+
+\bibitem{zynq}
+小林 優 著: FPGA プログラミング大全 Xilinx編, 秀和システム (2016).
+
+\bibitem{intel}
+インテル® SoC FPGA プログラマブル・デバイス (online), \url{https://www.intel.co.jp/content/www/jp/ja/products/programmable/soc.html} (accessed 2020-01-06).
+
+\bibitem{mmio}
+Memory-mapped I/O (メモリ・マップド入出力) (online), \url{http://www-comm.cs.shinshu-u.ac.jp/public/comparch/node91.html} (accessed 2019-12-30).
+
+\bibitem{erlang-python}
+fujimisakari/erlang-port-with-python - GitHub (Online), \url{https://github.com/fujimisakari/erlang-port-with-python} (accessed 2020-01-05).
+
+\end{thebibliography}
+
+
+\begin{quote}
+\appendix
+\begin{lstlisting}[caption=プロトコル変換部, label=protocol]
+# -*- coding:utf-8 -*-
+
+import os
+import sys
+import errno
+import numpy as np
+from struct import pack, unpack
+
+class ErlangTermsMixin(object):
+    def decode(self, term):
+        if term[0] != 131:
+            raise ValueError('unknown protocol version: {}'.format(term[0]))
+        return self._decode_term(term[1:])
+
+    def _decode_term(self, term):
+        tag = term[0]
+        tail = term[1:]
+
+        if tag == 97:
+            return ord(tail[:1]), tail[1:]
+        elif tag == 107:
+            # STRING_EXT
+            length, = unpack('>H', tail[:2])
+            tail = tail[2:]
+            return [ord(i) for i in tail[:length]], tail[length:]
+            #return [term[i] for i in tail[:length]], tail[length:]
+        elif tag == 100:
+            # ATOM_EXT
+            length, = unpack('>H', tail[:2])
+            tail = tail[2:]
+            name = tail[:length]
+            tail = tail[length:]
+            return name, tail
+        elif tag == 104:
+            # SMALL_TUPLE_EXT, LARGE_TUPLE_EXT
+            arity = tail[0]
+            tail = tail[1:]
+            lst = []
+            while arity > 0:
+                term, tail = self._decode_term(tail)
+                lst.append(term)
+                arity -= 1
+            return tuple(lst), tail
+        raise ValueError('unsupported data tag: {}'.format(tag))
+
+    def encode(self, term):
+        encoded_term = self._encode_term(term)
+        return b'\x83' + encoded_term
+
+    def _encode_term(self, term):
+        if isinstance(term, tuple):
+            arity = len(term)
+            if arity <= 255:
+                header = b'h%c' % arity
+            elif arity <= 4294967295:
+                header = pack('>BI', 105, arity)
+            else:
+                raise ValueError('invalid tuple arity')
+            return header + b''.join(self._encode_term(t) for t in term)
+        elif isinstance(term, bytes):
+            try:
+                bytes_data = term.encode('latin1')
+            except UnicodeEncodeError:
+                pass
+            return pack('>BH', 107, len(term)) + bytes_data
+        elif isinstance(term, str):
+            length = len(term)
+            if length > 4294967295:
+                raise ValueError('invalid binary length')
+            return pack('>BI', 109, length) + term
+        elif isinstance(term, (int, int)):
+            if 0 <= term <= 255:
+                return b'a%c' % term
+            elif -2147483648 <= term <= 2147483647:
+                return pack('>Bi', 98, term)
+            raise ValueError('invalid integer value')
+        elif isinstance(term, float):
+            length = len(str(term))
+            float_data = float(term)
+            return pack('>Bd',70, float_data) 
+        raise ValueError('unsupported data type: {}'.format(term))
+
+
+class Port(ErlangTermsMixin):
+    PACK_FORMAT = '>H'
+    PACKET_BYTE = 2
+
+    def __init__(self):
+        self.in_d = sys.stdin.fileno()
+        self.out_d = sys.stdout.fileno()
+
+    def read(self):
+        data = self._read_data(self.PACKET_BYTE)
+        length, = unpack(self.PACK_FORMAT, data)
+        data = self._read_data(length)
+        return self.decode(data)[0]
+
+    def _read_data(self, length):
+        data = b''
+        while len(data) != length:
+            try:
+                buf = os.read(self.in_d, length)
+            except IOError as e:
+                if e.errno == errno.EPIPE:
+                    raise EOFError('read error, EPIPE')
+                raise IOError('read error, io error')
+            if not buf:
+                raise EOFError('read error, buffer')
+            data += buf
+        return data
+
+    def write(self, message):
+        return data
+
+    def write(self, message):
+        data = self.encode(message)
+        data = pack(self.PACK_FORMAT, len(data)) + data
+        length = len(data)
+        if not length:
+            return
+        try:
+            n = os.write(self.out_d, data)
+        except IOError as e:
+            if e.errno == errno.EPIPE:
+                raise EOFError('write error, EPIPE')
+            raise IOError('write error, io error')
+        if n == 0:
+            raise EOFError('write error, no data')
+
+    def close(self):
+        os.close(self.in_d)
+        os.close(self.out_d)
+
+class Protocol(object):
+    def __init__(self):
+        self.port = Port()
+
+    def handle(self, message):
+        name = message[0]
+        args = message[1:]
+        handler = getattr(self, 'handler_{}'.format(name.decode()), None)
+        if handler is None:
+            return 'Error', 'Dose not exsit handler'
+        try:
+            response = handler(*args)
+        except TypeError:
+            response = 'TypeError', 'function_clause'
+        return response
+
+    def run(self):
+        while True:
+            try:
+                message = self.port.read()
+                response = self.handle(message)
+                self.port.write(response)
+            except ValueError as e:
+                response = 'ValueError', e.message
+                self.port.write(response)
+            except EOFError as e:
+                response = 'EOFError', e.message
+                self.port.write(response)
+                break
+\end{lstlisting}
+
+\end{quote}
+
+%
+%付録はこのように，\verb+\appendix +コマンドを用いて書く．
+%付録が複数あり「付録A」「付録B」などとしたい場合は，
+%\begin{quote}
+%\verb+\appendix[A]+\\
+%\verb+\appendix[B]+
+%\end{quote}
+%などとすればよい．
+ 
+\end{document}
+
+

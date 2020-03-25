@@ -1,0 +1,28 @@
+#include <stdio.h>
+#include <assert.h>
+#define MAX_G 10
+int main(void)
+{
+	int i,k,n;
+	double t=0;
+	double weight[MAX_G];
+	fprintf(stderr,"nを入力：");
+	scanf("%d",&n);
+	assert(n>=1&&n<=MAX_G);
+	for(i=1;i<=n;i++)
+	{
+		fprintf(stderr,"重さを入力：");
+		scanf("%lf",&weight[i-1]);
+	}
+	for(;;)
+	{
+		fprintf(stderr,"品物の番号の系列を入力：");
+		if(scanf("%d",&k)==EOF)
+		{
+			break;
+		}
+		t+=weight[k];
+	}
+	printf("%.1f\n",t);
+	return 0;
+}

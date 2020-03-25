@@ -1,0 +1,56 @@
+\documentclass[11pt,a4paper]{jsarticle}
+%
+\usepackage{amsmath,amssymb}
+\usepackage{bm}
+\usepackage{ascmac}
+\usepackage[dvipdfmx]{graphicx}
+\usepackage{url}
+\usepackage{dcolumn}
+
+%
+\setlength{\textwidth}{\fullwidth}
+\setlength{\textheight}{40\baselineskip}
+\addtolength{\textheight}{\topskip}
+\setlength{\voffset}{-0.2in}
+\setlength{\topmargin}{0pt}
+\setlength{\headheight}{0pt}
+\setlength{\headsep}{0pt}
+%
+\newcommand{\divergence}{\mathrm{div}\,}  %ダイバージェンス
+\newcommand{\grad}{\mathrm{grad}\,}  %グラディエント
+\newcommand{\rot}{\mathrm{rot}\,}  %ローテーション
+
+
+%
+\title{入社1年目の教科書}
+\author{大窄 直樹}
+\date{\today}
+\begin{document}
+\maketitle
+
+入社1年目の教科書は, 新社会人及び社会人の仕事への心構えについて書かれている本で, 
+仕事における3つの原則と50個の具体的な仕事のやり方が書かれている.
+本文では, 仕事における3つの原則に焦点を当てる.
+この本で記されている, 仕事における3つの原則を下記のものである.\par
+第1原則: 頼まれたことは, 必ずやりきる \par
+第2原則: 50点で構わないから早く出せ\par
+第3原則: つまらない仕事はない\\
+この3原則についての筆者の考え, 及び自分の考えを順に述べていく.
+
+最初に, 第1原則である"頼まれたことは, 必ずやりきる"について述べる.
+この原則について筆者は要約すると, ``新人は優秀さよりも頼まれたことをやりきれるかどうかが評価される.
+自主的に仕事を行うことで, 周りからの信頼され新しい仕事が回ってくる''と述べている.
+私も筆者と同様に与えられた仕事をやりきることは重要だと考える.
+しかし, 仕事をやりきるだけでは繋がらず, やりきった上で内容がよければ信頼に繋がると考える.
+例えば, 
+
+
+
+次に, 第2原則である"50点で構わないから早く出せ"について述べる.
+提出をゴールと考えるのではなく、最初のフィードバックの機会と考える。成長への近道は、得た経験を可能な限り短いサイクルで回し、多くの経験値のストックを増やせるかが鍵となる。
+
+最後に, 第3原則である ``つまらない仕事はない''について述べる.
+どんなに単純な作業であっても、その作業に自分なりの付加価値をつける。イチロー選手も毎日素振りをしている。
+
+
+\end{document}

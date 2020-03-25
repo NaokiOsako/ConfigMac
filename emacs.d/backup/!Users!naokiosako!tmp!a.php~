@@ -1,0 +1,34 @@
+<?php
+fscanf(STDIN, "%d%d", $N, $K);
+for($i = 0; $i < $N; $i++){
+  fscanf(STDIN, "%d%d", $x, $y);
+  $X[] = $x;$Y[] = $y;
+  $mapXY[$x] = $y;
+  $mapYX[$y] = $x;
+}
+$Xs = $X; $Ys = $Y;
+$min = 10**19;
+sort($Xs);sort($Ys);
+for($i = 0; $i < $N; $i++){
+  for($j = $i+1; $j < $N; $j++){
+    $xi = $Xs[$i];
+    $xj = $Xs[$j];
+ 
+    $yMax = 0;
+    $c = 0;
+    for($yMin = 0; $yMin < $N-$K+1; $yMin++){
+      while($c < $K && $yMax < $N){
+        $x = $mapYX[$Ys[$yMax++]];
+        if($x >= $xi && $x <= $xj)$c++;
+      }
+      if($c == $K){
+        $a = ($Ys[$yMin]-$Ys[$yMax-1])*($xi-$xj);
+        $min = min($a, $min);
+      }
+      $x = $mapYX[$Ys[$yMin]];
+      if($x >= $xi && $x <= $xj)$c--;
+    }
+  }
+}
+echo $min;
+ 

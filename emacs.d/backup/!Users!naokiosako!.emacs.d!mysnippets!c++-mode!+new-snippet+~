@@ -1,0 +1,6 @@
+# -*- mode: snippet -*-
+# name: sortr
+# key: sortr
+# --
+
+sort(v.begin(), v.end(), greater<int>());
