@@ -1,6 +1,0 @@
-#!/bin/sh
-g++ fault_detection.cpp
-echo "正常なモーター"
-./a.out < ./normal/0-500.txt
-echo "\n故障したモーター"
-./a.out <error/0-500.txt

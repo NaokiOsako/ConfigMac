@@ -1,8 +1,0 @@
-#!/bin/sh
-source config.sh
-for((i = 0; i < ${#array[@]}; i++)) {
-       mkdir -p ./$1/
-       for((j = 0; j < ${#work5[@]}; j++)) {
-	      wget --http-user=$username --http-password=$password $url\?S=2019cxa12\&act_item=1\&s=${array[i]}\&r=$1\&i=${work5[j]} -O ./$1/${array[i]}/${work5[j]}
-	  }
-   }

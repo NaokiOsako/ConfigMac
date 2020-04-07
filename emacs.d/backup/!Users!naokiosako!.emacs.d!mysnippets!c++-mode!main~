@@ -1,9 +1,0 @@
-# -*- mode: snippet -*-
-# name: main
-# key: main
-# --
-#include<bits/stdc++.h>
-using namespace std;
-int main(){
-    
-}
